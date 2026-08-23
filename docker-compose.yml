@@ -1,0 +1,16 @@
+services:
+  greenhouse:
+    build: .
+    ports:
+      - "${GREENHOUSE_PORT:-4000}:4000"
+    environment:
+      PORT: 4000
+      DATA_DIR: /app/data
+      DATABASE_PATH: /app/data/greenhouse.sqlite
+      MEDIA_DIR: /app/data/media
+    volumes:
+      - greenhouse-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  greenhouse-data:
