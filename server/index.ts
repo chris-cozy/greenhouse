@@ -41,7 +41,15 @@ app.get("/api/species",(req,res)=>res.json(store.listSpecies(String(req.query.q|
 app.post("/api/species",(req,res)=>res.status(201).json(store.saveSpecies(req.body)));
 app.get("/api/species/:id",(req,res)=>{const result=store.getSpecies(req.params.id);result?res.json(result):res.status(404).json({error:"Species not found."})});
 app.put("/api/species/:id",(req,res)=>res.json(store.saveSpecies(req.body,req.params.id as any)));
-app.delete("/api/species/:id",(req,res)=>{store.deleteSpecies(req.params.id);res.status(204).end()});
+app.post("/api/species/:id/image",upload.single("image"),(req,res,next)=>{
+  try{
+    if(!req.file)throw new Error("Choose a JPEG, PNG, WebP, or GIF image under 20 MB.");
+    const speciesId=String(req.params.id);if(!store.getSpecies(speciesId))throw new Error("Species not found.");const folder=path.join("species",speciesId,new Date().getFullYear().toString());fs.mkdirSync(path.join(mediaDir,folder),{recursive:true});
+    const relative=path.join(folder,`${randomUUID()}${extension[req.file.mimetype]}`);fs.renameSync(req.file.path,path.join(mediaDir,relative));
+    const result=store.setSpeciesImage(speciesId,relative);removeMedia(result.previousPath);res.json(result.species);
+  }catch(error){if(req.file)fs.rmSync(req.file.path,{force:true});next(error)}
+});
+app.delete("/api/species/:id",(req,res)=>{removeMedia(store.deleteSpecies(req.params.id));res.status(204).end()});
 
 app.get("/api/plants",(req,res)=>res.json(store.listPlants(req.query)));
 app.post("/api/plants",(req,res)=>res.status(201).json(store.savePlant(req.body)));
