@@ -34,6 +34,7 @@ const removeMedia=(relative:string|null)=>{if(!relative)return;const target=path
 
 app.get("/api/health",(_req,res)=>res.json({ok:true,app:"Greenhouse",mode:"local"}));
 app.get("/api/dashboard",(_req,res)=>res.json(store.dashboard()));
+app.get("/api/notifications",(_req,res)=>res.json(store.notifications()));
 app.get("/api/options",(_req,res)=>res.json(store.options()));
 app.get("/api/search",(req,res)=>res.json(store.search(String(req.query.q||""))));
 

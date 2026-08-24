@@ -1,15 +1,25 @@
-import { ArrowRight, BookOpenText, Camera, Check, Leaf, Plus, Sprout } from "lucide-react";
+import { BookOpenText, Camera, Check, Leaf, Plus, Sprout } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api";
-import type { DashboardData } from "../shared/types";
+import type { DashboardData, DashboardGardenItem } from "../shared/types";
 import { EmptyState, ErrorNote, Loading, prettyStatus, shortDate, useLoad } from "./Common";
+
+function GardenItem({item,kind}:{item:DashboardGardenItem;kind:"plant"|"terrarium"}){
+  const isPlant=kind==="plant";
+  return <Link className={`garden-item ${kind}`} to={`/${isPlant?"plants":"terrariums"}/${item.id}`} aria-label={`Open ${kind} ${item.name}`}>
+    <span className="garden-symbol" aria-hidden="true">{isPlant?<><Sprout className="garden-sprout"/><span className="garden-pot"/></>:<span className="garden-glass"><Sprout/><span/></span>}</span>
+    <span className="garden-item-label">{item.name}</span>
+  </Link>;
+}
 
 export function Dashboard({onAddPlant}:{onAddPlant:()=>void}){
   const {data,loading,error,reload}=useLoad<DashboardData>("/api/dashboard");
   const navigate=useNavigate();
   if(loading)return <div className="content"><Loading/></div>;
   if(error||!data)return <div className="content"><ErrorNote message={error||"Dashboard unavailable."}/></div>;
-  const empty=data.livingPlants===0&&data.terrariums===0;
+  const gardenSize=data.gardenPlants.length+data.gardenTerrariums.length;
+  const empty=gardenSize===0;
+  const gardenDensity=gardenSize>36?"miniature":gardenSize>18?"dense":gardenSize>6?"compact":"standard";
   return <div className="content dashboard-page">
     <section className="welcome"><div>
       <span className="eyebrow">{new Intl.DateTimeFormat(undefined,{weekday:"long",month:"long",day:"numeric"}).format(new Date())}</span>
@@ -17,9 +27,12 @@ export function Dashboard({onAddPlant}:{onAddPlant:()=>void}){
       <p>{empty?"Begin with one plant. Its archive can grow naturally over time.":"A calm view of the plants, places, and stories you’re tending."}</p>
     </div></section>
     <section className="summary-grid">
-      <Link to="/plants" className="summary-card"><div className="summary-icon"><Leaf/></div><div><span>Living plants</span><strong>{data.livingPlants}</strong><small>In your active collection</small></div></Link>
-      <Link to="/terrariums" className="summary-card"><div className="summary-icon amber"><Sprout/></div><div><span>Terrariums</span><strong>{data.terrariums}</strong><small>Miniature ecosystems</small></div></Link>
-      {data.attentionPlants.length?<Link to="/plants?attention=true" className="attention-card"><div><span className="eyebrow">A gentle nudge</span><h2>{data.attentionPlants.length} {data.attentionPlants.length===1?"plant may":"plants may"} need attention</h2><p>Review them when you have a moment.</p></div><span>View plants <ArrowRight/></span></Link>:<article className="attention-card calm"><div><span className="eyebrow">All looks calm</span><h2>No plants flagged for attention</h2><p>There’s nothing urgent waiting for you.</p></div><Check/></article>}
+      <article className={`garden-card ${empty?"empty":""}`}>
+        <header className="garden-card-header"><div><span className="eyebrow">Your collection</span><h2>A garden made one record at a time.</h2></div><div><Link to="/plants"><Leaf/> Plants</Link><Link to="/terrariums"><Sprout/> Terrariums</Link></div></header>
+        <div className="garden-scene" role="group" aria-label="Your plant and terrarium garden">
+          {empty?<div className="garden-empty"><Sprout/><p>Add a plant or terrarium to begin your garden.</p></div>:<div className={`garden-items density-${gardenDensity}`}>{data.gardenPlants.map(item=><GardenItem key={`plant-${item.id}`} item={item} kind="plant"/>)}{data.gardenTerrariums.map(item=><GardenItem key={`terrarium-${item.id}`} item={item} kind="terrarium"/>)}</div>}
+        </div>
+      </article>
     </section>
     {empty?<section className="getting-started"><div className="start-art"><div className="pot"><Sprout/></div></div><div><span className="eyebrow">Start simply</span><h2>Every archive begins with a name.</h2><p>Add a plant now. Species details, care preferences, photos, and journal notes can come later—only when they’re useful.</p><div><button className="button primary" onClick={onAddPlant}><Plus/> Add your first plant</button><Link className="button ghost" to="/species">Build species library</Link></div></div></section>:<section className="dashboard-grid">
       <article className="panel recent"><div className="section-heading"><div><span className="eyebrow">Recently updated</span><h2>Growing stories</h2></div><Link to="/plants">View collection</Link></div>{data.recentlyUpdated.length?<div className="plant-row">{data.recentlyUpdated.slice(0,3).map((plant,index)=><button className={`plant-card ${plant.profilePhotoUrl?"has-photo":"generated"} tone-${index}`} style={plant.profilePhotoUrl?{backgroundImage:`linear-gradient(0deg,rgba(6,13,8,.8),transparent),url(${plant.profilePhotoUrl})`}:undefined} key={plant.id} onClick={()=>navigate(`/plants/${plant.id}`)}><span className={`status ${plant.status}`}>{prettyStatus(plant.status)}</span><div>{!plant.profilePhotoUrl&&<Leaf className="placeholder-leaf"/>}<h3>{plant.name}</h3><p>{plant.speciesCommonName||"Unidentified plant"}</p><small>{plant.terrariumName||plant.location||`Updated ${shortDate(plant.updatedAt)}`}</small></div></button>)}</div>:null}</article>

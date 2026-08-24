@@ -9,6 +9,8 @@ export interface CareItem { id:string; plantId:string; activityType:CareActivity
 export interface Photo { id:string; plantId:string|null; terrariumId:string|null; url:string; originalName:string; mimeType:string; sizeBytes:number; dateTaken:string; caption:string; tags:string[]; createdAt:string; }
 export interface JournalEntry { id:string; title:string; entryDate:string; content:string; tags:string[]; plantIds:string[]; terrariumIds:string[]; linkedPlants?:Pick<Plant,"id"|"name">[]; linkedTerrariums?:Pick<Terrarium,"id"|"name">[]; createdAt:string; updatedAt:string; }
 export interface TimelineItem { id:string; kind:"event"|"photo"|"journal"; eventType?:HistoryEventType; date:string; title:string; detail:string; photoUrl?:string; journalId?:string; }
-export interface DashboardData { livingPlants:number; terrariums:number; attentionPlants:Plant[]; recentlyUpdated:Plant[]; recentJournals:JournalEntry[]; recentPhotos:Photo[]; upcomingReminders:Array<CareItem & {plantName:string}>; }
+export interface DashboardGardenItem { id:string; name:string; }
+export interface DashboardData { livingPlants:number; terrariums:number; gardenPlants:DashboardGardenItem[]; gardenTerrariums:DashboardGardenItem[]; attentionPlants:Plant[]; recentlyUpdated:Plant[]; recentJournals:JournalEntry[]; recentPhotos:Photo[]; upcomingReminders:Array<CareItem & {plantName:string}>; }
+export interface AppNotifications { attentionCount:number; attentionPlants:Array<{id:string;name:string;status:PlantStatus}>; attentionTerrariums:Array<{id:string;name:string;residentAttentionCount:number}>; }
 export interface GlobalSearchResult { id:string; type:"plant"|"species"|"terrarium"|"journal"; title:string; subtitle:string; url:string; }
 export interface AppOptions { species:Species[]; terrariums:Terrarium[]; tags:string[]; }

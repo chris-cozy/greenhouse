@@ -2,7 +2,7 @@ import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import type { CareActivityType, DashboardData, HistoryEventType, JournalEntry, Photo, Plant, Species, Terrarium, TimelineItem } from "../src/shared/types.js";
+import type { AppNotifications, CareActivityType, DashboardData, HistoryEventType, JournalEntry, Photo, Plant, PlantStatus, Species, Terrarium, TimelineItem } from "../src/shared/types.js";
 
 type Row=Record<string,any>;
 const iso=()=>new Date().toISOString();
@@ -150,11 +150,18 @@ export class GreenhouseStore {
     return [...events,...photos,...journals].sort((a,b)=>b.date.localeCompare(a.date));
   }
   dashboard():DashboardData{
-    const livingPlants=(this.db.prepare("SELECT COUNT(*) count FROM plants WHERE archived_at IS NULL AND status!='deceased'").get() as Row).count;
-    const terrariums=(this.db.prepare("SELECT COUNT(*) count FROM terrariums").get() as Row).count;
+    const gardenPlants=(this.db.prepare("SELECT id,name FROM plants WHERE archived_at IS NULL AND status!='deceased' ORDER BY created_at,rowid").all() as Row[]).map(r=>({id:String(r.id),name:String(r.name)}));
+    const gardenTerrariums=(this.db.prepare("SELECT id,name FROM terrariums ORDER BY created_at,rowid").all() as Row[]).map(r=>({id:String(r.id),name:String(r.name)}));
+    const livingPlants=gardenPlants.length;
+    const terrariums=gardenTerrariums.length;
     const photos=(this.db.prepare("SELECT * FROM photos ORDER BY COALESCE(NULLIF(date_taken,''),created_at) DESC LIMIT 8").all() as Row[]).map(r=>this.rowPhoto(r));
     const reminders=(this.db.prepare(`SELECT c.*,p.name plant_name FROM care_items c JOIN plants p ON p.id=c.plant_id WHERE c.reminder_enabled=1 AND c.next_reminder_date!='' AND p.archived_at IS NULL AND p.status!='deceased' ORDER BY c.next_reminder_date LIMIT 8`).all() as Row[]).map(r=>({...this.listCare(r.plant_id).find(x=>x.id===r.id)!,plantName:r.plant_name}));
-    return {livingPlants:Number(livingPlants),terrariums:Number(terrariums),attentionPlants:this.listPlants({scope:"all"}).filter(p=>!p.archivedAt&&(p.status==="needs_attention"||p.status==="recovering")).slice(0,6),recentlyUpdated:this.listPlants({scope:"living"}).slice(0,6),recentJournals:this.listJournal().slice(0,5),recentPhotos:photos,upcomingReminders:reminders};
+    return {livingPlants,terrariums,gardenPlants,gardenTerrariums,attentionPlants:this.listPlants({scope:"all"}).filter(p=>!p.archivedAt&&(p.status==="needs_attention"||p.status==="recovering")).slice(0,6),recentlyUpdated:this.listPlants({scope:"living"}).slice(0,6),recentJournals:this.listJournal().slice(0,5),recentPhotos:photos,upcomingReminders:reminders};
+  }
+  notifications():AppNotifications{
+    const attentionPlants=(this.db.prepare("SELECT id,name,status FROM plants WHERE archived_at IS NULL AND status IN('needs_attention','recovering') ORDER BY CASE status WHEN 'needs_attention' THEN 0 ELSE 1 END,created_at,rowid").all() as Row[]).map(r=>({id:String(r.id),name:String(r.name),status:r.status as PlantStatus}));
+    const attentionTerrariums=(this.db.prepare("SELECT t.id,t.name,COUNT(*) resident_attention_count FROM terrariums t JOIN plants p ON p.terrarium_id=t.id WHERE p.archived_at IS NULL AND p.status IN('needs_attention','recovering') GROUP BY t.id,t.name ORDER BY t.created_at,t.rowid").all() as Row[]).map(r=>({id:String(r.id),name:String(r.name),residentAttentionCount:Number(r.resident_attention_count)}));
+    return {attentionCount:attentionPlants.length+attentionTerrariums.length,attentionPlants,attentionTerrariums};
   }
   options(){return {species:this.listSpecies(),terrariums:this.listTerrariums(),tags:(this.db.prepare("SELECT name FROM tags ORDER BY name COLLATE NOCASE").all() as Row[]).map(r=>r.name)}}
   search(q:string){if(!text(q))return [];const like=`%${text(q)}%`;const results:any[]=[];for(const r of this.db.prepare(`${this.plantSelect} WHERE p.name LIKE ? OR s.common_name LIKE ? OR s.scientific_name LIKE ? LIMIT 8`).all(like,like,like) as Row[])results.push({id:r.id,type:"plant",title:r.name,subtitle:r.species_common_name||r.species_scientific_name||r.location,url:`/plants/${r.id}`});for(const r of this.db.prepare("SELECT * FROM species WHERE common_name LIKE ? OR scientific_name LIKE ? OR family LIKE ? LIMIT 6").all(like,like,like) as Row[])results.push({id:r.id,type:"species",title:r.common_name||r.scientific_name,subtitle:r.scientific_name||r.family,url:`/species/${r.id}`});for(const r of this.db.prepare("SELECT * FROM terrariums WHERE name LIKE ? OR description LIKE ? OR type LIKE ? LIMIT 6").all(like,like,like) as Row[])results.push({id:r.id,type:"terrarium",title:r.name,subtitle:r.type||r.location,url:`/terrariums/${r.id}`});for(const r of this.db.prepare("SELECT * FROM journal_entries WHERE title LIKE ? OR content LIKE ? LIMIT 6").all(like,like) as Row[])results.push({id:r.id,type:"journal",title:r.title,subtitle:r.entry_date,url:`/journal/${r.id}`});return results}
