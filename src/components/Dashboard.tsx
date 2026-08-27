@@ -1,13 +1,14 @@
 import { BookOpenText, Camera, Check, Leaf, Plus, Sprout } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api";
+import { getPlantIcon } from "../shared/plantIcons";
 import type { DashboardData, DashboardGardenItem } from "../shared/types";
 import { EmptyState, ErrorNote, Loading, prettyStatus, shortDate, useLoad } from "./Common";
 
 function GardenItem({item,kind}:{item:DashboardGardenItem;kind:"plant"|"terrarium"}){
   const isPlant=kind==="plant";
   return <Link className={`garden-item ${kind}`} to={`/${isPlant?"plants":"terrariums"}/${item.id}`} aria-label={`Open ${kind} ${item.name}`}>
-    <span className="garden-symbol" aria-hidden="true">{isPlant?<><Sprout className="garden-sprout"/><span className="garden-pot"/></>:<span className="garden-glass"><Sprout/><span/></span>}</span>
+    <span className="garden-symbol" aria-hidden="true">{isPlant?<img className="garden-plant-icon" src={getPlantIcon(item.id)} alt=""/>:<img className="garden-terrarium" src="/images/plant-spirit-terrarium.png" alt=""/>}</span>
     <span className="garden-item-label">{item.name}</span>
   </Link>;
 }

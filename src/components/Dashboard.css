@@ -244,42 +244,35 @@
 
 .garden-scene {
   position: relative;
+  isolation: isolate;
   height: 220px;
   overflow: hidden;
   border-top: 1px solid #2a3a2f;
-  background:
-    radial-gradient(circle at 16% 20%, #44674a66 0, transparent 25%),
-    radial-gradient(circle at 84% 10%, #ad9c5d24 0, transparent 24%),
-    linear-gradient(180deg, #203225 0, #16271b 62%, #172016 62%);
+  background-color: #071714;
+  background-image: url("/images/garden-collection-grass-wide.png");
+  background-position: center;
+  /* Keep the grass scale constant; the wide asset covers the 1414px maximum panel. */
+  background-size: auto 100%;
+  background-repeat: no-repeat;
 }
 
 .garden-scene::before {
   position: absolute;
   z-index: 0;
-  top: 12px;
-  right: 9%;
-  width: 240px;
-  height: 82px;
-  border-radius: 50%;
-  background: #93b7970b;
-  box-shadow: -300px 30px 0 #93b79708;
+  inset: 0;
+  background: linear-gradient(180deg, #10291fb3 0%, #08170dd1 100%);
   content: "";
+  pointer-events: none;
 }
 
 .garden-scene::after {
   position: absolute;
   z-index: 0;
-  right: -3%;
-  bottom: -22px;
-  left: -3%;
-  height: 102px;
-  border-radius: 50% 50% 0 0;
-  background:
-    radial-gradient(ellipse at 25% 5%, #53644155 0 3%, transparent 4%),
-    radial-gradient(ellipse at 70% 18%, #53644144 0 2%, transparent 3%),
-    linear-gradient(180deg, #24301d, #131a12);
-  box-shadow: inset 0 7px 18px #080d0880;
+  inset: 0;
+  background: linear-gradient(90deg, #02070745, transparent 18%, transparent 82%, #02070745);
+  box-shadow: inset 0 -34px 42px #02080645;
   content: "";
+  pointer-events: none;
 }
 
 .garden-items {
@@ -389,97 +382,33 @@
   transform: translate(-50%, -4px) scale(var(--garden-symbol-scale));
 }
 
-.garden-sprout {
-  position: absolute;
-  z-index: 1;
-  top: 0;
-  left: 7px;
-  width: 44px;
-  height: 53px;
-  color: #98c18e;
-  filter: drop-shadow(0 6px 8px #09100a88);
+.garden-plant-icon,
+.garden-terrarium {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 5px 7px #071008a8);
+  user-select: none;
 }
 
-.garden-pot {
-  position: absolute;
-  bottom: 7px;
-  left: 9px;
-  width: 40px;
-  height: 34px;
-  border-radius: 4px 4px 16px 16px;
-  background: linear-gradient(135deg, #9b704d, #5d3f2d);
-  box-shadow: inset -8px -4px 12px #33201766, 0 8px 12px #05080566;
+.garden-item.plant .garden-symbol {
+  /* Give the reclining variant room without changing the portrait icons' height. */
+  width: 72px;
 }
 
-.garden-pot::before {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  left: -4px;
-  height: 9px;
-  border-radius: 4px;
-  background: #a77b57;
-  box-shadow: inset 0 -3px #63432f;
-  content: "";
+.garden-plant-icon {
+  object-position: center bottom;
 }
 
-.garden-glass {
-  position: absolute;
-  bottom: 7px;
-  left: 3px;
-  display: grid;
-  place-items: center;
-  width: 52px;
-  height: 69px;
-  border: 2px solid #bcd5c47d;
-  border-radius: 25px 25px 11px 11px;
-  background:
-    radial-gradient(circle at 38% 26%, #e7f3e51d 0 8%, transparent 9%),
-    linear-gradient(135deg, #9ec5aa12, #10221838);
-  box-shadow: inset 0 0 24px #9cc5a622, 0 8px 13px #05080577;
+.garden-item.terrarium .garden-symbol {
+  width: 64px;
 }
 
-.garden-glass::before {
-  position: absolute;
-  top: -7px;
-  right: 17px;
-  left: 17px;
-  height: 7px;
-  border: 1px solid #b29463;
-  border-radius: 3px 3px 0 0;
-  background: #8a704c;
-  content: "";
-}
-
-.garden-glass::after {
-  position: absolute;
-  right: -5px;
-  bottom: -5px;
-  left: -5px;
-  height: 7px;
-  border-radius: 5px;
-  background: #8a704c;
-  box-shadow: 0 4px 8px #0006;
-  content: "";
-}
-
-.garden-glass > svg {
-  position: relative;
-  z-index: 1;
-  width: 31px;
-  height: 36px;
-  color: #8db887;
-  transform: translateY(5px);
-}
-
-.garden-glass > span {
-  position: absolute;
-  right: 5px;
-  bottom: 5px;
-  left: 5px;
-  height: 15px;
-  border-radius: 50% 50% 6px 6px;
-  background: #33462c;
+.garden-terrarium {
+  /* Keep the full jar, cork, and hanging leaf visible above the grass. */
+  object-fit: contain;
+  object-position: center bottom;
 }
 
 .garden-item-label {
