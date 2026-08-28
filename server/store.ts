@@ -1,3 +1,5 @@
+import { JournalRepository, migrateJournal } from "./journal.js";
+import { journalExcerpt } from "../src/shared/journal.js";
 import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
@@ -19,9 +21,11 @@ export class GreenhouseStore {
   private open(){
     const db=new Database(this.dbPath);
     db.pragma("journal_mode = WAL"); db.pragma("foreign_keys = ON"); db.pragma("busy_timeout = 5000");
-    this.migrate(db); return db;
+    try { this.migrate(db); return db; } catch (error) { db.close(); throw error; }
   }
   private migrate(db:Database.Database){
+    const existing=db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='journal_entries'").get();
+    if(existing&&!db.prepare("SELECT 1 FROM schema_migrations WHERE version=3").get())db.prepare("VACUUM INTO ?").run(`${this.dbPath}.before-diary-${randomUUID()}.sqlite`);
     db.exec(`
       CREATE TABLE IF NOT EXISTS schema_migrations(version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS species(
@@ -72,16 +76,17 @@ export class GreenhouseStore {
     const speciesColumns=(db.prepare("PRAGMA table_info(species)").all() as Row[]).map(column=>column.name);
     if(!speciesColumns.includes("image_path"))db.exec("ALTER TABLE species ADD COLUMN image_path TEXT NOT NULL DEFAULT ''");
     db.prepare("INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(2,?)").run(iso());
+    migrateJournal(db);
     db.pragma("optimize");
   }
   close(){this.db.close()}
   backupTo(destination:string){return this.db.backup(destination)}
-  replaceDatabase(source:string){this.db.close();fs.copyFileSync(source,this.dbPath);this.db=this.open()}
+  replaceDatabase(source:string){if(this.db.open)this.db.close();fs.copyFileSync(source,this.dbPath);this.db=this.open()}
 
-  private tagsFor(kind:"plant"|"photo"|"journal",id:string):string[]{
+  private tagsFor(kind:"plant"|"photo",id:string):string[]{
     return (this.db.prepare(`SELECT t.name FROM tags t JOIN ${kind}_tags x ON x.tag_id=t.id WHERE x.${kind}_id=? ORDER BY t.name COLLATE NOCASE`).all(id) as Row[]).map(r=>r.name);
   }
-  private syncTags(kind:"plant"|"photo"|"journal",id:string,tags:unknown){
+  private syncTags(kind:"plant"|"photo",id:string,tags:unknown){
     const values=Array.isArray(tags)?[...new Set(tags.map(text).filter(Boolean))]:[];
     const tx=this.db.transaction(()=>{this.db.prepare(`DELETE FROM ${kind}_tags WHERE ${kind}_id=?`).run(id);for(const name of values){const existing=this.db.prepare("SELECT id FROM tags WHERE name=? COLLATE NOCASE").get(name) as Row|undefined;const tagId=existing?.id||randomUUID();if(!existing)this.db.prepare("INSERT INTO tags(id,name) VALUES(?,?)").run(tagId,name);this.db.prepare(`INSERT INTO ${kind}_tags(${kind}_id,tag_id) VALUES(?,?)`).run(id,tagId)}});tx();
   }
@@ -114,14 +119,14 @@ export class GreenhouseStore {
   }
   archivePlant(id:string,archived:boolean){this.db.prepare("UPDATE plants SET archived_at=?,updated_at=? WHERE id=?").run(archived?iso():null,iso(),id);return this.getPlant(id)}
   deletePlant(id:string){const files=(this.db.prepare("SELECT relative_path FROM photos WHERE plant_id=?").all(id) as Row[]).map(r=>r.relative_path);this.db.prepare("DELETE FROM plants WHERE id=?").run(id);return files}
-  setProfilePhoto(plantId:string,photoId:string|null){if(photoId){const photo=this.db.prepare("SELECT id FROM photos WHERE id=? AND plant_id=?").get(photoId,plantId);if(!photo)throw new Error("Photo does not belong to this plant.")}this.db.prepare("UPDATE plants SET profile_photo_id=?,updated_at=? WHERE id=?").run(photoId,iso(),plantId);return this.getPlant(plantId)}
+  setProfilePhoto(plantId:string,photoId:string|null){if(!this.getPlant(plantId))throw new Error("Plant not found.");if(photoId){const photo=this.db.prepare("SELECT id FROM photos WHERE id=? AND plant_id=?").get(photoId,plantId);if(!photo)throw new Error("Photo does not belong to this plant.")}this.db.prepare("UPDATE plants SET profile_photo_id=?,updated_at=? WHERE id=?").run(photoId,iso(),plantId);return this.getPlant(plantId)}
 
   listTerrariums(q=""){const rows=this.db.prepare(`SELECT t.*,cp.relative_path cover_path,(SELECT COUNT(*) FROM plants p WHERE p.terrarium_id=t.id AND p.archived_at IS NULL AND p.status!='deceased') plant_count FROM terrariums t LEFT JOIN photos cp ON cp.id=t.cover_photo_id WHERE (?='' OR t.name LIKE ? OR t.type LIKE ? OR t.description LIKE ?) ORDER BY t.updated_at DESC`).all(q,`%${q}%`,`%${q}%`,`%${q}%`) as Row[];return rows.map(r=>this.rowTerrarium(r))}
   private rowTerrarium(r:Row):Terrarium{return {id:r.id,name:r.name,description:r.description,dateCreated:r.date_created,type:r.type,location:r.location,lightingSetup:r.lighting_setup,humidityRequirements:r.humidity_requirements,wateringNotes:r.watering_notes,substrateInformation:r.substrate_information,notes:r.notes,otherInhabitants:r.other_inhabitants,coverPhotoId:r.cover_photo_id,coverPhotoUrl:r.cover_path?`/media/${r.cover_path.replaceAll("\\","/")}`:"",plantCount:Number(r.plant_count||0),createdAt:r.created_at,updatedAt:r.updated_at}}
   getTerrarium(id:string){const r=this.db.prepare(`SELECT t.*,cp.relative_path cover_path,(SELECT COUNT(*) FROM plants p WHERE p.terrarium_id=t.id AND p.archived_at IS NULL AND p.status!='deceased') plant_count FROM terrariums t LEFT JOIN photos cp ON cp.id=t.cover_photo_id WHERE t.id=?`).get(id) as Row|undefined;if(!r)return null;const terrarium=this.rowTerrarium(r);terrarium.plants=this.listPlants({scope:"all",terrariumId:id});terrarium.photos=this.listPhotos("terrarium",id);terrarium.journalEntries=this.listJournal({terrariumId:id});terrarium.history=this.timeline("terrarium",id);return terrarium}
   saveTerrarium(input:Row,id=randomUUID()){if(!text(input.name))throw new Error("Terrarium name is required.");const now=iso();const old=this.getTerrarium(id);const values=[id,text(input.name),text(input.description),text(input.dateCreated),text(input.type),text(input.location),text(input.lightingSetup),text(input.humidityRequirements),text(input.wateringNotes),text(input.substrateInformation),text(input.notes),text(input.otherInhabitants),old?.coverPhotoId||null,old?.createdAt||now,now];this.db.prepare(`INSERT INTO terrariums(id,name,description,date_created,type,location,lighting_setup,humidity_requirements,watering_notes,substrate_information,notes,other_inhabitants,cover_photo_id,created_at,updated_at) VALUES(${values.map(()=>"?").join(",")}) ON CONFLICT(id) DO UPDATE SET name=excluded.name,description=excluded.description,date_created=excluded.date_created,type=excluded.type,location=excluded.location,lighting_setup=excluded.lighting_setup,humidity_requirements=excluded.humidity_requirements,watering_notes=excluded.watering_notes,substrate_information=excluded.substrate_information,notes=excluded.notes,other_inhabitants=excluded.other_inhabitants,updated_at=excluded.updated_at`).run(...values);return this.getTerrarium(id)!}
   deleteTerrarium(id:string){const plants=this.db.prepare("SELECT id FROM plants WHERE terrarium_id=?").all(id) as Row[];const tx=this.db.transaction(()=>{for(const plant of plants)this.addEvent(plant.id,null,"terrarium_removed",iso().slice(0,10),"Removed from terrarium","The terrarium was deleted.");this.db.prepare("UPDATE plants SET terrarium_id=NULL,updated_at=? WHERE terrarium_id=?").run(iso(),id);this.db.prepare("DELETE FROM terrariums WHERE id=?").run(id)});tx()}
-  setCoverPhoto(terrariumId:string,photoId:string|null){if(photoId){const photo=this.db.prepare("SELECT id FROM photos WHERE id=? AND terrarium_id=?").get(photoId,terrariumId);if(!photo)throw new Error("Photo does not belong to this terrarium.")}this.db.prepare("UPDATE terrariums SET cover_photo_id=?,updated_at=? WHERE id=?").run(photoId,iso(),terrariumId);return this.getTerrarium(terrariumId)}
+  setCoverPhoto(terrariumId:string,photoId:string|null){if(!this.getTerrarium(terrariumId))throw new Error("Terrarium not found.");if(photoId){const photo=this.db.prepare("SELECT id FROM photos WHERE id=? AND terrarium_id=?").get(photoId,terrariumId);if(!photo)throw new Error("Photo does not belong to this terrarium.")}this.db.prepare("UPDATE terrariums SET cover_photo_id=?,updated_at=? WHERE id=?").run(photoId,iso(),terrariumId);return this.getTerrarium(terrariumId)}
 
   listCare(plantId:string){return (this.db.prepare("SELECT * FROM care_items WHERE plant_id=? ORDER BY sort_order,id").all(plantId) as Row[]).map(r=>({id:r.id,plantId:r.plant_id,activityType:r.activity_type as CareActivityType,customLabel:r.custom_label,guidance:r.guidance,cadenceDays:r.cadence_days,reminderEnabled:Boolean(r.reminder_enabled),nextReminderDate:r.next_reminder_date,notes:r.notes,sortOrder:r.sort_order}))}
   saveCare(plantId:string,input:Row,id=randomUUID()){const exists=this.db.prepare("SELECT id FROM plants WHERE id=?").get(plantId);if(!exists)throw new Error("Plant not found.");this.db.prepare(`INSERT INTO care_items(id,plant_id,activity_type,custom_label,guidance,cadence_days,reminder_enabled,next_reminder_date,notes,sort_order) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET activity_type=excluded.activity_type,custom_label=excluded.custom_label,guidance=excluded.guidance,cadence_days=excluded.cadence_days,reminder_enabled=excluded.reminder_enabled,next_reminder_date=excluded.next_reminder_date,notes=excluded.notes,sort_order=excluded.sort_order`).run(id,plantId,text(input.activityType)||"custom",text(input.customLabel),text(input.guidance),Number(input.cadenceDays)>0?Number(input.cadenceDays):null,bool(input.reminderEnabled),text(input.nextReminderDate),text(input.notes),Number(input.sortOrder)||0);return this.listCare(plantId).find(x=>x.id===id)!}
@@ -137,16 +142,16 @@ export class GreenhouseStore {
   updatePhoto(id:string,input:Row){this.db.prepare("UPDATE photos SET date_taken=?,caption=? WHERE id=?").run(text(input.dateTaken),text(input.caption),id);this.syncTags("photo",id,input.tags);const r=this.db.prepare("SELECT * FROM photos WHERE id=?").get(id) as Row|undefined;return r?this.rowPhoto(r):null}
   deletePhoto(id:string){const r=this.db.prepare("SELECT relative_path,plant_id,terrarium_id FROM photos WHERE id=?").get(id) as Row|undefined;if(!r)return null;this.db.prepare("UPDATE plants SET profile_photo_id=NULL WHERE profile_photo_id=?").run(id);this.db.prepare("UPDATE terrariums SET cover_photo_id=NULL WHERE cover_photo_id=?").run(id);this.db.prepare("DELETE FROM photos WHERE id=?").run(id);return r.relative_path as string}
 
-  private rowJournal(r:Row):JournalEntry{return {id:r.id,title:r.title,entryDate:r.entry_date,content:r.content,tags:this.tagsFor("journal",r.id),plantIds:(this.db.prepare("SELECT plant_id FROM journal_plants WHERE journal_id=?").all(r.id) as Row[]).map(x=>x.plant_id),terrariumIds:(this.db.prepare("SELECT terrarium_id FROM journal_terrariums WHERE journal_id=?").all(r.id) as Row[]).map(x=>x.terrarium_id),linkedPlants:this.db.prepare("SELECT p.id,p.name FROM plants p JOIN journal_plants jp ON jp.plant_id=p.id WHERE jp.journal_id=? ORDER BY p.name").all(r.id) as any,linkedTerrariums:this.db.prepare("SELECT t.id,t.name FROM terrariums t JOIN journal_terrariums jt ON jt.terrarium_id=t.id WHERE jt.journal_id=? ORDER BY t.name").all(r.id) as any,createdAt:r.created_at,updatedAt:r.updated_at}}
-  listJournal(filters:Row={}){const clauses:string[]=[];const args:unknown[]=[];if(text(filters.q)){clauses.push("(j.title LIKE ? OR j.content LIKE ?)");args.push(`%${text(filters.q)}%`,`%${text(filters.q)}%`)}if(text(filters.plantId)){clauses.push("EXISTS(SELECT 1 FROM journal_plants jp WHERE jp.journal_id=j.id AND jp.plant_id=?)");args.push(text(filters.plantId))}if(text(filters.terrariumId)){clauses.push("EXISTS(SELECT 1 FROM journal_terrariums jt WHERE jt.journal_id=j.id AND jt.terrarium_id=?)");args.push(text(filters.terrariumId))}if(text(filters.tag)){clauses.push("EXISTS(SELECT 1 FROM journal_tags jt JOIN tags t ON t.id=jt.tag_id WHERE jt.journal_id=j.id AND t.name=? COLLATE NOCASE)");args.push(text(filters.tag))}const rows=this.db.prepare(`SELECT j.* FROM journal_entries j ${clauses.length?`WHERE ${clauses.join(" AND ")}`:""} ORDER BY j.entry_date DESC,j.updated_at DESC`).all(...args) as Row[];return rows.map(r=>this.rowJournal(r))}
-  getJournal(id:string){const r=this.db.prepare("SELECT * FROM journal_entries WHERE id=?").get(id) as Row|undefined;return r?this.rowJournal(r):null}
-  saveJournal(input:Row,id=randomUUID()){if(!text(input.title))throw new Error("Journal title is required.");const now=iso();const old=this.getJournal(id);const tx=this.db.transaction(()=>{this.db.prepare("INSERT INTO journal_entries(id,title,entry_date,content,created_at,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET title=excluded.title,entry_date=excluded.entry_date,content=excluded.content,updated_at=excluded.updated_at").run(id,text(input.title),text(input.entryDate)||now.slice(0,10),text(input.content),old?.createdAt||now,now);this.db.prepare("DELETE FROM journal_plants WHERE journal_id=?").run(id);for(const plantId of Array.isArray(input.plantIds)?input.plantIds:[])this.db.prepare("INSERT OR IGNORE INTO journal_plants(journal_id,plant_id) VALUES(?,?)").run(id,text(plantId));this.db.prepare("DELETE FROM journal_terrariums WHERE journal_id=?").run(id);for(const terrariumId of Array.isArray(input.terrariumIds)?input.terrariumIds:[])this.db.prepare("INSERT OR IGNORE INTO journal_terrariums(journal_id,terrarium_id) VALUES(?,?)").run(id,text(terrariumId));this.syncTags("journal",id,input.tags)});tx();return this.getJournal(id)!}
-  deleteJournal(id:string){this.db.prepare("DELETE FROM journal_entries WHERE id=?").run(id)}
+  get journal(){return new JournalRepository(this.db)}
+  listJournal(filters:Row={}){return this.journal.list(filters)}
+  getJournal(id:string){return this.journal.get(id)}
+  saveJournal(input:Row,id?:string){return this.journal.save(input,id)}
+  deleteJournal(id:string){return this.journal.delete(id)}
 
   timeline(kind:"plant"|"terrarium",id:string):TimelineItem[]{
     const events=(this.db.prepare(`SELECT * FROM history_events WHERE ${kind}_id=?`).all(id) as Row[]).map(r=>({id:r.id,kind:"event" as const,eventType:r.event_type,date:r.event_date,title:r.title,detail:r.detail}));
     const photos=this.listPhotos(kind,id).map(p=>({id:p.id,kind:"photo" as const,date:p.dateTaken||p.createdAt,title:"Progress photo",detail:p.caption,photoUrl:p.url}));
-    const journals=this.listJournal(kind==="plant"?{plantId:id}:{terrariumId:id}).map(j=>({id:j.id,kind:"journal" as const,date:j.entryDate,title:j.title,detail:j.content.slice(0,180),journalId:j.id}));
+    const journals=this.listJournal(kind==="plant"?{plantId:id}:{terrariumId:id}).map(j=>({id:j.id,kind:"journal" as const,date:j.entryDate,title:j.title,detail:journalExcerpt(j.content,180),journalId:j.id}));
     return [...events,...photos,...journals].sort((a,b)=>b.date.localeCompare(a.date));
   }
   dashboard():DashboardData{

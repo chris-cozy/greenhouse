@@ -1,12 +1,13 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { ArrowRight, Bell, BookOpenText, Flower2, Home, Leaf, PanelLeftClose, PanelLeftOpen, Search, Settings, Sprout } from "lucide-react";
-import { BrowserRouter, Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { createBrowserRouter, RouterProvider, Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import type { AppNotifications, AppOptions } from "./shared/types";
-import { useLoad, GlobalSearch, prettyStatus } from "./components/Common";
+import { useLoad, GlobalSearch, Loading, prettyStatus } from "./components/Common";
 import { Dashboard } from "./components/Dashboard";
 import { PlantsPage, PlantDetailPage } from "./components/Plants";
 import { SpeciesPage, TerrariumDetailPage, TerrariumsPage } from "./components/Library";
-import { JournalDetailPage, JournalPage, SettingsPage } from "./components/JournalSettings";
+import { SettingsPage } from "./components/JournalSettings";
+const JournalWorkspace=lazy(()=>import("./journal/JournalWorkspace").then(module=>({default:module.JournalWorkspace})));
 
 const nav=[
   {to:"/",label:"Home",icon:Home},
@@ -40,7 +41,7 @@ function Shell(){
   const [sidebarCollapsed,setSidebarCollapsed]=useState(()=>localStorage.getItem("greenhouse-sidebar-collapsed")==="true");
   useEffect(()=>{
     const key=(e:KeyboardEvent)=>{
-      if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){e.preventDefault();setSearch(true)}
+      if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){if((e.target as HTMLElement).closest("[contenteditable]"))return;e.preventDefault();setSearch(true)}
       if(e.key==="Escape")setSearch(false);
     };
     window.addEventListener("keydown",key);
@@ -60,7 +61,7 @@ function Shell(){
     </aside>
     <main>
       <header className="topbar"><button className="search-trigger" onClick={()=>setSearch(true)}><Search size={17}/><span>Search your greenhouse…</span><kbd>Ctrl K</kbd></button><AttentionNotifications data={notifications}/></header>
-      <Routes>
+      <Suspense fallback={<Loading/>}><Routes>
         <Route path="/" element={<Dashboard onAddPlant={()=>navigate("/plants")}/>}/>
         <Route path="/plants" element={<PlantsPage options={current} refreshOptions={refreshApp}/>}/>
         <Route path="/plants/:id" element={<PlantDetailPage options={current} refreshOptions={refreshApp}/>}/>
@@ -68,14 +69,15 @@ function Shell(){
         <Route path="/terrariums/:id" element={<TerrariumDetailPage refreshOptions={refreshApp}/>}/>
         <Route path="/species" element={<SpeciesPage refreshOptions={refreshApp}/>}/>
         <Route path="/species/:id" element={<SpeciesPage refreshOptions={refreshApp}/>}/>
-        <Route path="/journal" element={<JournalPage options={current} refreshOptions={refreshApp}/>}/>
-        <Route path="/journal/:id" element={<JournalDetailPage options={current} refreshOptions={refreshApp}/>}/>
+        <Route path="/journal" element={<JournalWorkspace options={current} refreshOptions={refreshApp}/>}/>
+        <Route path="/journal/:id" element={<JournalWorkspace options={current} refreshOptions={refreshApp}/>}/>
         <Route path="/settings" element={<SettingsPage/>}/>
         <Route path="*" element={<Navigate to="/" replace/>}/>
-      </Routes>
+      </Routes></Suspense>
     </main>
     <GlobalSearch open={search} onClose={()=>setSearch(false)} options={options}/>
   </div>;
 }
 
-export function App(){return <BrowserRouter><Shell/></BrowserRouter>}
+const router=createBrowserRouter([{path:"*",element:<Shell/>}]);
+export function App(){return <RouterProvider router={router}/>}

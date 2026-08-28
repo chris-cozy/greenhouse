@@ -15,8 +15,30 @@ export function Loading(){return <div className="loading"><LoaderCircle classNam
 export function ErrorNote({message}:{message:string}){return <div className="error-note"><AlertCircle size={17}/>{message}</div>}
 export function Tags({items}:{items:string[]}){return items.length?<div className="tags">{items.map(tag=><span key={tag}>#{tag}</span>)}</div>:null}
 
-export function Modal({title,subtitle,onClose,children,wide=false}:{title:string;subtitle?:string;onClose:()=>void;children:ReactNode;wide?:boolean}){useEffect(()=>{const key=(e:KeyboardEvent)=>{if(e.key==="Escape")onClose()};window.addEventListener("keydown",key);return()=>window.removeEventListener("keydown",key)},[onClose]);return <div className="modal-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}><section className={`modal ${wide?"wide":""}`} role="dialog" aria-modal="true" aria-label={title}><header><div><span className="eyebrow">Greenhouse record</span><h2>{title}</h2>{subtitle&&<p>{subtitle}</p>}</div><button className="icon-button" onClick={onClose} aria-label="Close"><X/></button></header>{children}</section></div>}
-export function Confirm({title,copy,onConfirm,onClose}:{title:string;copy:string;onConfirm:()=>Promise<void>|void;onClose:()=>void}){const [busy,setBusy]=useState(false);return <Modal title={title} onClose={onClose}><div className="confirm"><p>{copy}</p><div className="form-actions"><button className="button ghost" onClick={onClose}>Keep it</button><button className="button danger" disabled={busy} onClick={async()=>{setBusy(true);await onConfirm();setBusy(false)}}><Trash2 size={16}/> Delete permanently</button></div></div></Modal>}
+export function Modal({title,subtitle,onClose,children,wide=false}:{title:string;subtitle?:string;onClose:()=>void;children:ReactNode;wide?:boolean}){
+  const dialog=useRef<HTMLElement>(null),close=useRef(onClose);close.current=onClose;
+  useEffect(()=>{
+    const previous=document.activeElement as HTMLElement|null;
+    const top=()=>Array.from(document.querySelectorAll('[role="dialog"]')).at(-1)===dialog.current;
+    if(!dialog.current?.contains(document.activeElement))dialog.current?.querySelector<HTMLElement>('input,button,textarea,select,[tabindex="0"]')?.focus();
+    const key=(e:KeyboardEvent)=>{
+      if(!top())return;
+      if(e.key==="Escape"){e.preventDefault();e.stopImmediatePropagation();close.current()}
+      if(e.key==="Tab"){
+        const targets=Array.from(dialog.current?.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),textarea:not(:disabled),select:not(:disabled),a[href],[tabindex="0"]')||[]).filter(el=>el.getClientRects().length>0);
+        const first=targets[0],last=targets.at(-1);
+        if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus()}
+        else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus()}
+      }
+    };
+    window.addEventListener("keydown",key);return()=>{window.removeEventListener("keydown",key);if(previous?.isConnected)previous.focus()};
+  },[]);
+  return <div className="modal-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}><section ref={dialog} className={`modal ${wide?"wide":""}`} role="dialog" aria-modal="true" aria-label={title}><header><div><span className="eyebrow">Greenhouse record</span><h2>{title}</h2>{subtitle&&<p>{subtitle}</p>}</div><button type="button" className="icon-button" onClick={onClose} aria-label="Close"><X/></button></header>{children}</section></div>;
+}
+export function Confirm({title,copy,onConfirm,onClose}:{title:string;copy:string;onConfirm:()=>Promise<void>|void;onClose:()=>void}){
+  const [busy,setBusy]=useState(false),[error,setError]=useState("");
+  return <Modal title={title} onClose={()=>{if(!busy)onClose()}}><div className="confirm"><p>{copy}</p>{error&&<ErrorNote message={error}/>}<div className="form-actions"><button type="button" className="button ghost" disabled={busy} onClick={onClose}>Keep it</button><button type="button" className="button danger" disabled={busy} onClick={async()=>{setBusy(true);try{await onConfirm()}catch(e){setError((e as Error).message)}finally{setBusy(false)}}}><Trash2 size={16}/> Delete permanently</button></div></div></Modal>;
+}
 
 export function FormActions({onCancel,busy,label="Save changes"}:{onCancel:()=>void;busy:boolean;label?:string}){return <div className="form-actions"><button type="button" className="button ghost" onClick={onCancel}>Cancel</button><button className="button primary" disabled={busy}>{busy?<LoaderCircle className="spin" size={17}/>:<Check size={17}/>} {label}</button></div>}
 export function Field({label,children,wide=false,hint}:{label:string;children:ReactNode;wide?:boolean;hint?:string}){return <label className={`field ${wide?"field-wide":""}`}><span>{label}</span>{children}{hint&&<small>{hint}</small>}</label>}

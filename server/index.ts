@@ -10,6 +10,8 @@ import { randomUUID } from "node:crypto";
 import { pipeline } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
 import { GreenhouseStore } from "./store.js";
+import { HttpError } from "./journal.js";
+import { imageMime } from "./imageValidation.js";
 
 const here=path.dirname(fileURLToPath(import.meta.url));
 const projectRoot=process.cwd();
@@ -77,7 +79,25 @@ app.get("/api/journal",(req,res)=>res.json(store.listJournal(req.query)));
 app.post("/api/journal",(req,res)=>res.status(201).json(store.saveJournal(req.body)));
 app.get("/api/journal/:id",(req,res)=>{const result=store.getJournal(req.params.id);result?res.json(result):res.status(404).json({error:"Journal entry not found."})});
 app.put("/api/journal/:id",(req,res)=>res.json(store.saveJournal(req.body,req.params.id as any)));
-app.delete("/api/journal/:id",(req,res)=>{store.deleteJournal(req.params.id);res.status(204).end()});
+app.delete("/api/journal/:id",(req,res)=>{for(const file of store.deleteJournal(req.params.id))removeMedia(file);res.status(204).end()});
+
+app.get("/api/journal-tags",(_req,res)=>res.json(store.journal.tags()));
+app.post("/api/journal-tags",(req,res)=>res.status(201).json(store.journal.createTag(req.body.name)));
+app.put("/api/journal-tags/:id",(req,res)=>{if(typeof req.body.name!=="string")throw new HttpError("A tag name is required.");store.journal.changeTag(req.params.id,req.body.name);res.json(store.journal.tags().find(t=>t.id===req.params.id))});
+app.delete("/api/journal-tags/:id",(req,res)=>{store.journal.changeTag(req.params.id);res.status(204).end()});
+app.post("/api/journal/:id/images",upload.single("image"),(req,res,next)=>{
+  let moved:string|undefined;
+  try{
+    if(!store.getJournal(String(req.params.id)))throw new HttpError("Journal entry not found.",404);
+    if(!req.file)throw new HttpError("Choose a JPEG, PNG, WebP, or GIF image under 20 MB.");
+    const mime=imageMime(fs.readFileSync(req.file.path));
+    if(!mime||mime!==req.file.mimetype)throw new HttpError("This file is not a valid JPEG, PNG, WebP, or GIF image.");
+    const folder="journal";fs.mkdirSync(path.join(mediaDir,folder),{recursive:true});
+    const relative=path.join(folder,`${randomUUID()}${extension[mime]}`);
+    moved=path.join(mediaDir,relative);fs.renameSync(req.file.path,moved);
+    res.status(201).json(store.journal.addImage(String(req.params.id),{relativePath:relative,originalName:req.file.originalname,mimeType:mime,sizeBytes:req.file.size}));
+  }catch(error){if(req.file)fs.rmSync(req.file.path,{force:true});if(moved)fs.rmSync(moved,{force:true});next(error)}
+});
 
 app.post("/api/photos",upload.single("photo"),(req,res,next)=>{
   try{
@@ -115,7 +135,13 @@ app.post("/api/restore",archiveUpload.single("backup"),asyncRoute(async(req,res)
 }));
 
 const dist=path.join(projectRoot,"dist");if(process.env.NODE_ENV==="production"&&fs.existsSync(dist)){app.use(express.static(dist));app.get("/*splat",(_req,res)=>res.sendFile(path.join(dist,"index.html")))}
-app.use((error:unknown,_req:Request,res:Response,_next:NextFunction)=>{const message=error instanceof Error?error.message:"Something went wrong.";console.error(error);res.status(message.toLowerCase().includes("not found")?404:400).json({error:message})});
+app.use((error:unknown,_req:Request,res:Response,_next:NextFunction)=>{
+  const message=error instanceof Error?error.message:"Something went wrong.";
+  const httpStatus=(error as {status?:number})?.status;
+  const status=error instanceof multer.MulterError&&error.code==="LIMIT_FILE_SIZE"?413:error instanceof HttpError?error.status:typeof httpStatus==="number"&&httpStatus>=400&&httpStatus<=599?httpStatus:message.toLowerCase().includes("not found")?404:400;
+  if(status>=500)console.error(error);
+  res.status(status).json({error:status===413?"The uploaded file exceeds the allowed size limit.":message});
+});
 
 if(process.env.NODE_ENV!=="test")app.listen(port,()=>console.log(`Greenhouse is growing at http://localhost:${port}`));
 

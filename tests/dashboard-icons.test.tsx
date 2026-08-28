@@ -32,6 +32,23 @@ vi.mock("../src/components/Common", async importOriginal => ({
 }));
 
 describe("dashboard collection icons", () => {
+  it("shows the requested home copy and puts reminders immediately after the collection",()=>{
+    dashboard.upcomingReminders=[{id:"care",plantId:"plant",plantName:"Fern",activityType:"watering",customLabel:"",guidance:"",cadenceDays:null,reminderEnabled:true,nextReminderDate:"2026-08-30",notes:"",sortOrder:0}];
+    try {
+      const html=renderToStaticMarkup(<MemoryRouter><Dashboard onAddPlant={()=>{}}/></MemoryRouter>);
+      const document=new DOMParser().parseFromString(html,"text/html");
+      expect(document.querySelector("h1")?.textContent).toBe("Your greenhouse ♡");
+      expect(document.querySelector(".welcome p")?.textContent).toBe("All of the plants under your care");
+      expect(document.querySelector(".garden-card h2")?.textContent).toBe("All of the sprites in your garden");
+      expect(document.querySelector(".summary-grid")?.nextElementSibling?.className).toBe("reminder-strip");
+    } finally {dashboard.upcomingReminders=[];}
+  });
+  it("retains the same heading and separate onboarding for an empty greenhouse",()=>{
+    const plants=dashboard.gardenPlants,terrariums=dashboard.gardenTerrariums;
+    dashboard.gardenPlants=[];dashboard.gardenTerrariums=[];
+    try {const html=renderToStaticMarkup(<MemoryRouter><Dashboard onAddPlant={()=>{}}/></MemoryRouter>);expect(html).toContain("Your greenhouse ♡");expect(html).toContain("Add your first plant");expect(html).not.toContain("reminder-strip");}
+    finally {dashboard.gardenPlants=plants;dashboard.gardenTerrariums=terrariums;}
+  });
   it("keeps plant assignments and renders the new jar for every terrarium with its own link", () => {
     const html = renderToStaticMarkup(<MemoryRouter><Dashboard onAddPlant={() => {}}/></MemoryRouter>);
     const document = new DOMParser().parseFromString(html, "text/html");

@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "description": "A calm, local-first home for plants, terrariums, and their stories.",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "concurrently \"npm:dev:server\" \"npm:dev:client\"",
     "dev:server": "tsx watch server/index.ts",
@@ -15,8 +17,11 @@
     "typecheck": "tsc --noEmit && tsc -p tsconfig.server.json --noEmit"
   },
   "dependencies": {
+    "@milkdown/kit": "^7.22.1",
+    "@milkdown/react": "^7.22.1",
     "archiver": "^7.0.1",
     "better-sqlite3": "^12.2.0",
+    "dompurify": "^3.4.14",
     "express": "^5.1.0",
     "lucide-react": "^0.468.0",
     "multer": "^2.0.2",
@@ -25,6 +30,9 @@
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.8.2",
     "remark-gfm": "^4.0.1",
+    "remark-parse": "^11.0.0",
+    "remark-stringify": "^11.0.0",
+    "unified": "^11.0.5",
     "unzipper": "^0.12.3"
   },
   "devDependencies": {

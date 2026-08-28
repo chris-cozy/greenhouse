@@ -1,8 +1,9 @@
 const jsonHeaders = { "Content-Type": "application/json" };
+export class ApiError extends Error { constructor(message:string,public status:number){super(message)} }
 
 async function request<T>(path:string, init?:RequestInit):Promise<T>{
   const response=await fetch(path,init);
-  if(!response.ok){const body=await response.json().catch(()=>({error:"Something went wrong."}));throw new Error(body.error||`Request failed (${response.status})`)}
+  if(!response.ok){const body=await response.json().catch(()=>({error:"Something went wrong."}));throw new ApiError(body.error||`Request failed (${response.status})`,response.status)}
   if(response.status===204)return undefined as T;
   return response.json() as Promise<T>;
 }

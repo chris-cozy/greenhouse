@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import Database from "better-sqlite3";
 import { GreenhouseStore } from "../server/store";
+import { localDateKey } from "../src/shared/journal";
 
 const cleanup:string[]=[];
 afterEach(()=>{for(const dir of cleanup.splice(0))fs.rmSync(dir,{recursive:true,force:true})});
@@ -23,4 +24,78 @@ describe("Greenhouse local store",()=>{
   it("returns direct plant and affected terrarium notifications",()=>{const {store}=makeStore();const terrarium=store.saveTerrarium({name:"Cloud Garden"});store.savePlant({name:"Healthy",status:"healthy"});const concern=store.savePlant({name:"Concern",status:"needs_attention",terrariumId:terrarium.id});const recovering=store.savePlant({name:"Recovering",status:"recovering"});const archived=store.savePlant({name:"Hidden concern",status:"needs_attention",terrariumId:terrarium.id});store.archivePlant(archived.id,true);expect(store.notifications()).toEqual({attentionCount:3,attentionPlants:[{id:concern.id,name:"Concern",status:"needs_attention"},{id:recovering.id,name:"Recovering",status:"recovering"}],attentionTerrariums:[{id:terrarium.id,name:"Cloud Garden",residentAttentionCount:1}]});store.close()});
 
   it("creates a valid portable SQLite snapshot",async()=>{const {store,dir}=makeStore();store.savePlant({name:"Sol",status:"healthy"});const snapshot=path.join(dir,"backup.sqlite");await store.backupTo(snapshot);const backup=new Database(snapshot,{readonly:true});expect((backup.prepare("SELECT COUNT(*) count FROM plants").get() as {count:number}).count).toBe(1);expect((backup.pragma("integrity_check") as Array<{integrity_check:string}>)[0].integrity_check).toBe("ok");backup.close();store.close()});
+
+  it("preserves Markdown, creation metadata, and revisions without rewriting a no-op save",()=>{
+    const {store}=makeStore();
+    const content="    indented code\n\n| A | B |\n| - | - |\n| x | y |\n\n";
+    const entry=store.saveJournal({content,createdAt:"2020-04-03T15:00:00.000Z",timezoneOffset:240,tags:["Fern","fern"]});
+    expect(entry.title).toBe("Untitled entry");expect(entry.content).toBe(content);expect(entry.entryDate).toBe("2020-04-03");expect(entry.tags).toEqual(["Fern"]);
+    const same=store.saveJournal({...entry,expectedRevision:entry.revision},entry.id);
+    expect(same.revision).toBe(entry.revision);expect(same.updatedAt).toBe(entry.updatedAt);
+    const edited=store.saveJournal({...entry,title:"New title",expectedRevision:entry.revision},entry.id);
+    expect(edited.revision).toBe(2);expect(edited.createdAt).toBe(entry.createdAt);expect(edited.recordedAt).toBe(entry.recordedAt);
+    expect(()=>store.saveJournal({...entry,expectedRevision:1},entry.id)).toThrow("changed elsewhere");
+    store.deleteJournal(entry.id);expect(()=>store.saveJournal({...entry,expectedRevision:2},entry.id)).toThrow("not found");store.close();
+  });
+
+  it("keeps diary tag creation, rename, deletion, and search separate from plant/photo tags",()=>{
+    const {store}=makeStore();const plant=store.savePlant({name:"Fern",tags:["growth"]});
+    const photo=store.createPhoto({relativePath:"plant.jpg",originalName:"p.jpg",mimeType:"image/jpeg",sizeBytes:20,plantId:plant.id,tags:["growth"]});
+    const entry=store.saveJournal({title:"Observation",content:"A new frond",tags:["growth"]});
+    const tag=store.journal.tags()[0];expect(tag.entryCount).toBe(1);
+    expect(()=>store.journal.createTag("GROWTH")).toThrow("already exists");
+    store.journal.changeTag(tag.id,"Progress");expect(store.getJournal(entry.id)?.tags).toEqual(["Progress"]);
+    expect(store.listJournal({q:"Progress"})).toHaveLength(1);expect(store.listJournal({tag:"PROGRESS"})).toHaveLength(1);
+    expect(store.getPlant(plant.id)?.tags).toEqual(["growth"]);expect(store.getPlant(plant.id)?.photos?.find(p=>p.id===photo.id)?.tags).toEqual(["growth"]);
+    store.journal.changeTag(tag.id);expect(store.getJournal(entry.id)?.tags).toEqual([]);expect(store.getJournal(entry.id)?.revision).toBe(3);store.close();
+  });
+
+  it("keeps diary chronology at timezone boundaries and changes only the editable creation timestamp",()=>{
+    const {store}=makeStore();
+    const entry=store.saveJournal({createdAt:"2026-08-27T01:00:00.000Z",timezoneOffset:240});expect(entry.entryDate).toBe("2026-08-26");
+    const textEdit=store.saveJournal({content:"Later observation"},entry.id);expect(textEdit.entryDate).toBe(entry.entryDate);
+    const creationEdit=store.saveJournal({createdAt:"2020-01-01T23:30:00.000Z",timezoneOffset:-600},entry.id);expect(creationEdit.entryDate).toBe("2020-01-02");expect(creationEdit.recordedAt).toBe(entry.recordedAt);expect(creationEdit.revision).toBe(3);
+    expect(()=>store.saveJournal({createdAt:"2026-02-30T12:00:00Z"},entry.id)).toThrow("valid creation date");
+    expect(store.getJournal(entry.id)).toEqual(creationEdit);store.close();
+  });
+
+  it("only permits owned cover photos and clears a deleted cover without replacing it on upload",()=>{
+    const {store}=makeStore();const plant=store.savePlant({name:"Fern"}),other=store.savePlant({name:"Moss"}),terrarium=store.saveTerrarium({name:"Jar"});
+    const photo=store.createPhoto({relativePath:"one.jpg",originalName:"1.jpg",mimeType:"image/jpeg",sizeBytes:20,plantId:plant.id});
+    const habitat=store.createPhoto({relativePath:"jar.jpg",originalName:"2.jpg",mimeType:"image/jpeg",sizeBytes:20,terrariumId:terrarium.id});
+    expect(()=>store.setProfilePhoto(other.id,photo.id)).toThrow("does not belong");expect(()=>store.setCoverPhoto(terrarium.id,photo.id)).toThrow("does not belong");
+    expect(()=>store.setProfilePhoto("missing",null)).toThrow("not found");expect(()=>store.setCoverPhoto("missing",null)).toThrow("not found");
+    store.setProfilePhoto(plant.id,photo.id);store.setCoverPhoto(terrarium.id,habitat.id);
+    store.createPhoto({relativePath:"new.jpg",originalName:"new.jpg",mimeType:"image/jpeg",sizeBytes:20,plantId:plant.id});
+    expect(store.getPlant(plant.id)?.profilePhotoUrl).toBe("/media/one.jpg");expect(store.getTerrarium(terrarium.id)?.coverPhotoUrl).toBe("/media/jar.jpg");
+    store.deletePhoto(photo.id);store.deletePhoto(habitat.id);expect(store.getPlant(plant.id)?.profilePhotoId).toBeNull();expect(store.getTerrarium(terrarium.id)?.coverPhotoId).toBeNull();store.close();
+  });
+
+  it("retains images needed by undo or another entry and deletes only unshared attachments",()=>{
+    const {store}=makeStore();const one=store.saveJournal({title:"One"}),two=store.saveJournal({title:"Two"});
+    const image=store.journal.addImage(one.id,{relativePath:`journal/${one.id}/image.png`,originalName:"image.png",mimeType:"image/png",sizeBytes:20});
+    store.saveJournal({...two,content:`![Fern](${image.url})`},two.id);
+    expect(store.deleteJournal(one.id)).toEqual([]);expect(store.deleteJournal(two.id)).toEqual([`journal/${one.id}/image.png`]);store.close();
+  });
+
+  it("migrates old diary dates and shared tags once, with a pre-migration snapshot",async()=>{
+    const {store,dir}=makeStore();const plant=store.savePlant({name:"Legacy plant",tags:["growth"]});const dbPath=store.dbPath;store.close();
+    const db=new Database(dbPath);db.pragma("foreign_keys = OFF");
+    db.exec("DROP TABLE journal_tags; DROP TABLE journal_tag_definitions; DROP TABLE journal_images; ALTER TABLE journal_entries DROP COLUMN recorded_at; ALTER TABLE journal_entries DROP COLUMN revision; DELETE FROM schema_migrations WHERE version=3; CREATE TABLE journal_tags(journal_id TEXT,tag_id TEXT)");
+    db.prepare("INSERT INTO journal_entries(id,title,entry_date,content,created_at,updated_at) VALUES(?,?,?,?,?,?)").run("legacy","Old diary","2020-01-03","  legacy content  ","2026-08-20T14:00:00.000Z","2026-08-21T10:00:00.000Z");
+    const original="2026-08-21T02:30:00.000Z";
+    db.prepare("INSERT INTO journal_entries(id,title,entry_date,content,created_at,updated_at) VALUES(?,?,?,?,?,?)").run("same-day","Keep original",localDateKey(original),"Existing chronology",original,original);
+    db.prepare("INSERT INTO journal_plants VALUES(?,?)").run("legacy",plant.id);
+    const tag=db.prepare("SELECT id FROM tags WHERE name='growth'").get() as {id:string};db.prepare("INSERT INTO journal_tags VALUES(?,?)").run("legacy",tag.id);db.close();
+    const migrated=new GreenhouseStore(dbPath),entry=migrated.getJournal("legacy")!;
+    expect(entry.entryDate).toBe("2020-01-03");expect(new Date(entry.createdAt).getFullYear()).toBe(2020);expect(new Date(entry.createdAt).getHours()).toBe(12);
+    expect(entry.recordedAt).toBe("2026-08-20T14:00:00.000Z");expect(entry.updatedAt).toBe("2026-08-21T10:00:00.000Z");expect(entry.content).toBe("  legacy content  ");expect(entry.tags).toEqual(["growth"]);
+    expect(migrated.getPlant(plant.id)?.tags).toEqual(["growth"]);
+    expect(migrated.getJournal("same-day")?.createdAt).toBe(original);expect(entry.plantIds).toEqual([plant.id]);
+    const backups=fs.readdirSync(dir).filter(file=>file.includes("before-diary"));expect(backups).toHaveLength(1);
+    const backup=new Database(path.join(dir,backups[0]),{readonly:true});expect(backup.prepare("SELECT content FROM journal_entries WHERE id='legacy'").get()).toEqual({content:"  legacy content  "});backup.close();
+    migrated.replaceDatabase(path.join(dir,backups[0]));expect(migrated.getJournal("legacy")).toEqual(entry);
+    const snapshot=path.join(dir,"new-backup.sqlite");await migrated.backupTo(snapshot);migrated.replaceDatabase(snapshot);expect(migrated.getJournal("legacy")).toEqual(entry);migrated.close();
+    const reopened=new GreenhouseStore(dbPath);expect(reopened.getJournal("legacy")).toEqual(entry);expect(fs.readdirSync(dir).filter(file=>file.includes("before-diary"))).toHaveLength(2);reopened.close();
+  });
 });
