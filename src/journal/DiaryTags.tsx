@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Pencil, Plus, Tag, Trash2, X } from "lucide-react";
 import type { JournalTag } from "../shared/types";
 import { api } from "../api";
+import { useMutation } from "../components/Interaction";
 import { Confirm, ErrorNote, Modal } from "../components/Common";
 
 export function DiaryTagPicker({tags,value,onChange}:{tags:JournalTag[];value:string[];onChange:(value:string[])=>void}){
@@ -33,14 +34,17 @@ export function DiaryTagPicker({tags,value,onChange}:{tags:JournalTag[];value:st
 
 export function DiaryTagManager({tags,onChanged,onClose}:{tags:JournalTag[];onChanged:()=>Promise<void>;onClose:()=>void}){
   const [editing,setEditing]=useState<JournalTag|null>(null),[removing,setRemoving]=useState<JournalTag|null>(null),[name,setName]=useState("");
-  const [busy,setBusy]=useState(false),[error,setError]=useState("");
-  async function save(){setBusy(true);setError("");try{if(editing)await api.put(`/api/journal-tags/${editing.id}`,{name});else await api.post("/api/journal-tags",{name});setEditing(null);setName("");await onChanged()}catch(e){setError((e as Error).message)}finally{setBusy(false)}}
-  return <Modal title="Manage diary tags" subtitle="These tags belong only to your diary. Plant and photo tags stay unchanged." onClose={()=>{if(!busy)onClose()}}>
+  const mutation=useMutation();
+  const [refreshError,setRefreshError]=useState(""),[refreshing,setRefreshing]=useState(false),[message,setMessage]=useState("");
+  const busy=mutation.busy||refreshing;
+  async function refresh(){setRefreshing(true);try{await onChanged();setRefreshError("")}catch(error){setRefreshError((error as Error).message)}finally{setRefreshing(false)}}
+  function save(){void mutation.run(()=>editing?api.put(`/api/journal-tags/${editing.id}`,{name}):api.post("/api/journal-tags",{name}),()=>{setEditing(null);setName("");setMessage("Diary tag saved.");void refresh()})}
+  return <Modal busy={busy} title="Manage diary tags" subtitle="These tags belong only to your diary. Plant and photo tags stay unchanged." onClose={()=>{if(!busy)onClose()}}>
     <div className="tag-manager scroll-form">
-      <form onSubmit={e=>{e.preventDefault();void save()}}><label>{editing?`Rename ${editing.name}`:"Create a tag"}<input autoFocus required aria-label="Tag name" value={name} onChange={e=>setName(e.target.value)}/></label><button className="button primary" disabled={busy}>{editing?"Rename":<><Plus size={15}/> Create</>}</button>{editing&&<button type="button" className="text-button" onClick={()=>{setEditing(null);setName("")}}>Cancel</button>}</form>
-      {error&&<ErrorNote message={error}/>}
+      <form onSubmit={e=>{e.preventDefault();void save()}}><label>{editing?`Rename ${editing.name}`:"Create a tag"}<input autoFocus required disabled={busy} aria-label="Tag name" value={name} onChange={e=>setName(e.target.value)}/></label><button className="button primary" disabled={busy}>{editing?"Rename":<><Plus size={15}/> Create</>}</button>{editing&&<button type="button" className="text-button" disabled={busy} onClick={()=>{setEditing(null);setName("")}}>Cancel</button>}</form>
+      {mutation.error&&<ErrorNote message={mutation.error}/>}<p role="status" className="save-feedback">{message}</p>{refreshError&&<div className="refresh-note"><ErrorNote message={refreshError}/><button className="button ghost" disabled={refreshing} onClick={()=>void refresh()}>Retry tag refresh</button></div>}
       <ul>{tags.map(tag=><li key={tag.id}><span>#{tag.name}<small>{tag.entryCount} {tag.entryCount===1?"entry":"entries"}</small></span><button type="button" className="icon-button" aria-label={`Rename ${tag.name}`} disabled={busy} onClick={()=>{setEditing(tag);setName(tag.name)}}><Pencil size={15}/></button><button type="button" className="icon-button" aria-label={`Delete ${tag.name}`} disabled={busy} onClick={()=>setRemoving(tag)}><Trash2 size={15}/></button></li>)}</ul>
     </div>
-    {removing&&<Confirm title={`Delete #${removing.name}?`} copy={`Remove this tag from ${removing.entryCount} diary entries. The entries themselves, and all plant/photo tags, will remain.`} onClose={()=>setRemoving(null)} onConfirm={async()=>{setBusy(true);try{await api.delete(`/api/journal-tags/${removing.id}`);setRemoving(null);await onChanged()}catch(e){setError((e as Error).message);setRemoving(null)}finally{setBusy(false)}}}/>}
+    {removing&&<Confirm title={`Delete #${removing.name}?`} copy={`Remove this tag from ${removing.entryCount} diary entries. The entries themselves, and all plant/photo tags, will remain.`} onClose={()=>setRemoving(null)} onConfirm={async()=>{await api.delete(`/api/journal-tags/${removing.id}`);setRemoving(null);setMessage("Diary tag removed.");void refresh()}}/>}
   </Modal>;
 }

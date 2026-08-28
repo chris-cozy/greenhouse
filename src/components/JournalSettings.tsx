@@ -1,6 +1,39 @@
 import { useRef, useState } from "react";
-import { ArchiveRestore, Download, FileArchive, Upload } from "lucide-react";
+import { ArchiveRestore, Download, FileArchive, ShieldCheck, Upload } from "lucide-react";
 import { api } from "../api";
-import { ErrorNote, PageHeader } from "./Common";
+import { ErrorNote, Modal, PageHeader } from "./Common";
+import { useMutation } from "./Interaction";
 
-export function SettingsPage(){const input=useRef<HTMLInputElement>(null);const [file,setFile]=useState<File|null>(null);const [busy,setBusy]=useState(false);const [message,setMessage]=useState("");const [error,setError]=useState("");const restore=async()=>{if(!file)return;setBusy(true);setMessage("");setError("");try{const form=new FormData();form.append("backup",file);await api.upload("/api/restore",form);setMessage("Greenhouse was restored successfully. Reloading…");setTimeout(()=>window.location.assign("/"),800)}catch(e){setError((e as Error).message);setBusy(false)}};return <div className="content settings-page"><PageHeader eyebrow="Settings" title="Your local greenhouse" description="Data lives on this computer. Keep a portable backup somewhere safe."/><div className="settings-grid"><article className="settings-card"><div className="setting-icon"><Download/></div><span className="eyebrow">Complete backup</span><h2>Take your greenhouse with you</h2><p>Download one ZIP containing a consistent SQLite snapshot, every uploaded image, and a versioned manifest.</p><a className="button primary" href="/api/backup"><FileArchive/> Download backup</a></article><article className="settings-card"><div className="setting-icon amber"><ArchiveRestore/></div><span className="eyebrow">Restore</span><h2>Return to a saved state</h2><p>Greenhouse validates the backup before replacing anything and keeps a rollback copy while restoring.</p><input ref={input} hidden type="file" accept=".zip,application/zip" onChange={e=>{setFile(e.target.files?.[0]||null);setMessage("");setError("")}}/><button className="button ghost" onClick={()=>input.current?.click()}><Upload/> {file?file.name:"Choose backup"}</button>{file&&<button className="button primary" disabled={busy} onClick={()=>void restore()}>Restore this backup</button>}{message&&<div className="success-note">{message}</div>}{error&&<ErrorNote message={error}/>}</article></div></div>}
+export function SettingsPage() {
+  const input = useRef<HTMLInputElement>(null);
+  const [file, setFile] = useState<File | null>(null), [confirm, setConfirm] = useState(false), [restored, setRestored] = useState(false);
+  const mutation = useMutation(), completed = useRef(false);
+  const busy = mutation.busy || restored;
+  const restore = () => {
+    if (!file || completed.current) return;
+    void mutation.run(async () => {
+      const form = new FormData(); form.append("backup", file);
+      await api.upload("/api/restore", form);
+    }, () => {
+      completed.current = true; setRestored(true); setConfirm(false);
+      // A restored database requires a full reload even if navigation occurs during this confirmation.
+      window.setTimeout(() => window.location.assign("/"), 800);
+    });
+  };
+  return <div className="content settings-page">
+    <PageHeader eyebrow="Settings" title="Your local greenhouse" description="Data lives on this computer. Keep a portable backup somewhere safe."/>
+    <div className="settings-grid">
+      <article className="settings-card"><div className="setting-icon"><Download/></div><span className="eyebrow">Complete backup</span><h2>Take your greenhouse with you</h2><p>Download one ZIP containing a consistent SQLite snapshot, every uploaded image, and a versioned manifest.</p><a className="button primary" href="/api/backup"><FileArchive/> Download backup</a></article>
+      <article className="settings-card"><div className="setting-icon amber"><ArchiveRestore/></div><span className="eyebrow">Restore</span><h2>Return to a saved state</h2><p>Restoring replaces your current greenhouse with the contents of a backup. Download a fresh backup first if you want to keep today’s records.</p><p><ShieldCheck size={16} aria-hidden="true"/> Greenhouse validates the file and keeps a rollback copy while restoring.</p>
+        <input ref={input} hidden disabled={busy} aria-label="Backup ZIP file" type="file" accept=".zip,application/zip" onChange={e => { setFile(e.target.files?.[0] || null); mutation.clearError(); }}/>
+        {file && <span className="backup-filename">Selected: {file.name}</span>}
+        <div className="restore-controls"><button className="button ghost" disabled={busy} onClick={() => input.current?.click()}><Upload/> {file ? "Choose another backup" : "Choose backup"}</button>{file && <button className="button primary" disabled={busy} onClick={() => setConfirm(true)}>Restore this backup</button>}</div>
+        <div className="success-note" role="status">{restored && "Greenhouse was restored successfully. Reloading…"}</div>
+        {!confirm && mutation.error && <ErrorNote message={mutation.error}/>}
+      </article>
+    </div>
+    <Modal open={confirm} busy={mutation.busy} title="Replace this greenhouse?" eyebrow="Restore a backup" onClose={() => { if (!mutation.isBusy()) setConfirm(false); }}>
+      <div className="restore-confirm"><p>Restore <strong>{file?.name}</strong> and replace the current plants, terrariums, species, journal entries, and photos with this backup.</p><p>This cannot be undone from the application. Keep a current backup before continuing.</p>{mutation.error && <ErrorNote message={mutation.error}/>}<div className="form-actions"><button className="button ghost" disabled={mutation.busy} onClick={() => setConfirm(false)}>Cancel</button><button className="button danger" disabled={mutation.busy} onClick={restore}>{mutation.busy ? "Restoring…" : "Replace and restore"}</button></div></div>
+    </Modal>
+  </div>;
+}

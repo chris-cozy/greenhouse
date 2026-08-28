@@ -6,6 +6,8 @@ import { act, useRef, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { Modal } from "../src/components/Common";
+import type { GardenViewState } from "../src/components/Garden";
 import { Dashboard, Garden } from "../src/components/Dashboard";
 import { getPlantIcon, PLANT_ICON_IMAGES } from "../src/shared/plantIcons";
 import type { DashboardData } from "../src/shared/types";
@@ -89,89 +91,123 @@ describe("dashboard collection icons", () => {
 });
 
 let interactiveRoot:Root|undefined,interactiveHost:HTMLDivElement|undefined;
-afterEach(async()=>{if(interactiveRoot)await act(async()=>interactiveRoot?.unmount());interactiveHost?.remove();interactiveRoot=undefined;interactiveHost=undefined;vi.restoreAllMocks();vi.unstubAllGlobals()});
 const gardenPlants=Array.from({length:37},(_,index)=>({id:`garden-${index}`,name:index===0?"A very long and treasured maidenhair fern by the kitchen window":`Plant ${index}`}));
-function GardenHarness({count}:{count:number}){
-  const position=useRef(0),[visible,setVisible]=useState(true);
-  return <MemoryRouter><button onClick={()=>setVisible(!visible)}>Toggle garden</button>{visible&&<Garden plants={gardenPlants.slice(0,count)} terrariums={[]} initialScroll={position.current} onScrollPositionChange={next=>{position.current=next}}/>}</MemoryRouter>;
+function GardenHarness({count,overlay=false}:{count:number;overlay?:boolean}){
+  const position=useRef<GardenViewState|undefined>(undefined),[visible,setVisible]=useState(true);
+  return <MemoryRouter><button onClick={()=>setVisible(!visible)}>Toggle garden</button>{visible&&<Garden plants={gardenPlants.slice(0,count)} terrariums={[]} initialState={position.current} onViewStateChange={next=>{position.current=next}}/>}<Modal open={overlay} title="Overlay" onClose={()=>{}}><input/></Modal></MemoryRouter>;
 }
-async function showGarden(count:number){
+async function showGarden(count:number,overlay=false){
   (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;
   if(!interactiveRoot){interactiveHost=document.createElement("div");document.body.append(interactiveHost);interactiveRoot=createRoot(interactiveHost)}
-  await act(async()=>interactiveRoot!.render(<GardenHarness count={count}/>));
+  await act(async()=>interactiveRoot!.render(<GardenHarness count={count} overlay={overlay}/>));
 }
 const gardenButton=(label:string)=>Array.from(interactiveHost!.querySelectorAll<HTMLButtonElement>("button")).find(button=>button.textContent?.trim()===label||button.getAttribute('aria-label')===label)!;
 const track=()=>interactiveHost!.querySelector<HTMLUListElement>('.garden-track')!;
-const links=()=>Array.from(interactiveHost!.querySelectorAll<HTMLAnchorElement>('.garden-item'));
+const links=()=>Array.from(interactiveHost!.querySelectorAll<HTMLAnchorElement>('li[data-copy="0"] .garden-item'));
+const pointer=(type:string,x:number,buttons=1)=>{const event=new MouseEvent(type,{clientX:x,button:0,buttons,bubbles:true,cancelable:true});Object.defineProperties(event,{pointerType:{value:'mouse'},pointerId:{value:1}});return event};
+let clock=0,frameId=0,width=400;
+let frames=new Map<number,FrameRequestCallback>(),resize:()=>void,intersect:(entries:{isIntersecting:boolean}[])=>void;
+async function advance(ms:number,step=16){await act(async()=>{for(let elapsed=0;elapsed<ms;){const delta=Math.min(step,ms-elapsed);clock+=delta;elapsed+=delta;const pending=Array.from(frames.values());frames.clear();pending.forEach(callback=>callback(clock))}})}
+async function click(label:string){await act(async()=>gardenButton(label).click())}
+async function scroll(left:number){await act(async()=>{track().scrollLeft=left;track().dispatchEvent(new Event('scroll'))})}
 
-describe("rolling garden carousel",()=>{
-  const scrollTo=vi.fn(function(this:HTMLElement,options:ScrollToOptions){this.scrollLeft=options.left||0;this.dispatchEvent(new Event('scroll'))});
+describe("endless garden carousel",()=>{
   const originals=new Map<string,PropertyDescriptor|undefined>();
   beforeEach(()=>{
-    vi.spyOn(HTMLElement.prototype,'clientWidth','get').mockReturnValue(400);
-    vi.spyOn(HTMLElement.prototype,'scrollWidth','get').mockImplementation(function(this:HTMLElement){return Math.max(400,this.children.length*136-12+48)});
+    clock=0;frameId=0;width=400;frames=new Map();
+    vi.spyOn(performance,'now').mockImplementation(()=>clock);
+    vi.spyOn(document,'hidden','get').mockReturnValue(false);
+    vi.stubGlobal('requestAnimationFrame',(callback:FrameRequestCallback)=>{frames.set(++frameId,callback);return frameId});
+    vi.stubGlobal('cancelAnimationFrame',(id:number)=>frames.delete(id));
+    vi.stubGlobal('ResizeObserver',class {constructor(callback:()=>void){resize=callback}observe(){}disconnect(){}});
+    vi.stubGlobal('IntersectionObserver',class {constructor(callback:typeof intersect){intersect=callback}observe(){}disconnect(){}});
+    vi.spyOn(HTMLElement.prototype,'clientWidth','get').mockImplementation(()=>width);
     vi.spyOn(HTMLElement.prototype,'offsetLeft','get').mockImplementation(function(this:HTMLElement){return 24+Array.from(this.parentElement?.children||[]).indexOf(this)*136});
     vi.spyOn(HTMLElement.prototype,'offsetWidth','get').mockReturnValue(124);
-    for(const [name,value] of Object.entries({scrollTo,setPointerCapture:vi.fn(),hasPointerCapture:()=>true,releasePointerCapture:vi.fn()})){
+    vi.spyOn(HTMLElement.prototype,'getBoundingClientRect').mockImplementation(function(this:HTMLElement){const left=this.offsetLeft-(this.parentElement?.scrollLeft||0);return {left,right:left+124,width:124,top:0,bottom:100,height:100,x:left,y:0,toJSON(){}}});
+    const computed=window.getComputedStyle.bind(window);
+    vi.spyOn(window,'getComputedStyle').mockImplementation(element=>element.classList.contains('garden-track')?{paddingLeft:'24px',paddingRight:'24px',columnGap:'12px'} as CSSStyleDeclaration:computed(element));
+    for(const [name,value] of Object.entries({scrollTo:function(this:HTMLElement,options:ScrollToOptions){this.scrollLeft=options.left||0},setPointerCapture:vi.fn(),hasPointerCapture:()=>true,releasePointerCapture:vi.fn()})){
       originals.set(name,Object.getOwnPropertyDescriptor(HTMLElement.prototype,name));Object.defineProperty(HTMLElement.prototype,name,{configurable:true,value});
     }
-    scrollTo.mockClear();
   });
-  afterEach(()=>{for(const [name,descriptor] of originals){if(descriptor)Object.defineProperty(HTMLElement.prototype,name,descriptor);else delete (HTMLElement.prototype as any)[name]}originals.clear()});
-  it.each([0,1,6,7,37])("keeps all %i entries in one row without cloned companions or page replacements",async count=>{
+  afterEach(async()=>{
+    if(interactiveRoot)await act(async()=>interactiveRoot?.unmount());interactiveHost?.remove();interactiveRoot=undefined;interactiveHost=undefined;
+    for(const [name,descriptor] of originals){if(descriptor)Object.defineProperty(HTMLElement.prototype,name,descriptor);else delete (HTMLElement.prototype as any)[name]}originals.clear();
+    expect(frames.size).toBe(0);vi.restoreAllMocks();vi.unstubAllGlobals();
+  });
+  it.each([0,1,6,7,37])("keeps all %i entries reachable once in the accessible sequence",async count=>{
     await showGarden(count);
-    const original=links(),seen=original.map(link=>link.getAttribute('href'));
-    expect(seen).toEqual(gardenPlants.slice(0,count).map(plant=>`/plants/${plant.id}`));
-    expect(new Set(seen).size).toBe(count);
+    const original=links();
+    expect(original.map(link=>link.getAttribute('href'))).toEqual(gardenPlants.slice(0,count).map(plant=>`/plants/${plant.id}`));
+    expect(new Set(original).size).toBe(count);
     expect(interactiveHost!.querySelector('.garden-pagination')).toBeNull();
-    if(count<=1){expect(gardenButton('Scroll garden right')).toBeUndefined();return}
-    expect(gardenButton('Scroll garden left').disabled).toBe(true);
-    while(!gardenButton('Scroll garden right').disabled)await act(async()=>gardenButton('Scroll garden right').click());
-    expect(track().scrollLeft).toBe(track().scrollWidth-track().clientWidth);
-    expect(links()).toEqual(original);
-    expect(interactiveHost!.textContent).toContain(`of ${count} companions`);
-    while(!gardenButton('Scroll garden left').disabled)await act(async()=>gardenButton('Scroll garden left').click());
-    expect(track().scrollLeft).toBe(0);
+    if(count<=1){expect(gardenButton('Pause')).toBeUndefined();return}
+    expect(interactiveHost!.querySelectorAll('li[aria-hidden=true]')).toHaveLength(count*2);
+    expect(interactiveHost!.querySelectorAll('li[aria-hidden=true] a,li[aria-hidden=true] [tabindex]')).toHaveLength(0);
+    const start=track().scrollLeft;
+    for(let i=0;i<count;i++){await click('Scroll garden right');await advance(160)}
+    expect(track().scrollLeft).toBeCloseTo(start,5);expect(links()).toEqual(original);
+    for(let i=0;i<count;i++){await click('Scroll garden left');await advance(160)}
+    expect(track().scrollLeft).toBeCloseTo(start,5);
   });
-  it("rolls one companion at a time and retains its position across navigation, then clamps after removal",async()=>{
-    await showGarden(37);
-    expect(interactiveHost!.textContent).toContain('1–3 of 37 companions');
-    await act(async()=>gardenButton('Scroll garden right').click());
-    expect(track().scrollLeft).toBe(136);
-    expect(interactiveHost!.textContent).toContain('2–4 of 37 companions');
-    await act(async()=>gardenButton("Toggle garden").click());
-    await act(async()=>gardenButton("Toggle garden").click());
-    expect(track().scrollLeft).toBe(136);
-    await showGarden(1);
-    expect(interactiveHost!.querySelector('.garden-item-label')?.textContent).toBe(gardenPlants[0].name);
-    expect(track().scrollLeft).toBe(0);expect(gardenButton('Scroll garden right')).toBeUndefined();
-    await showGarden(37);
-    expect(track().scrollLeft).toBe(0);
+  it("glides at 18px/second after 1.2 seconds without announcements",async()=>{
+    await showGarden(7);const start=track().scrollLeft;
+    await advance(1200);expect(track().scrollLeft).toBe(start);
+    await advance(1000);expect(track().scrollLeft-start).toBeCloseTo(18,5);
+    await advance(1000,32);expect(track().scrollLeft-start).toBeCloseTo(36,5);
+    expect(interactiveHost!.querySelector('.garden-card [role=status]')?.textContent).toBe('');
   });
-  it("keeps long names visible and lets the keyboard reach both ends",async()=>{
-    await showGarden(37);
-    expect(links()[0].querySelector('.garden-item-label')?.textContent).toBe(gardenPlants[0].name);
-    expect(links()[0].hasAttribute('title')).toBe(false);
-    expect(track().tabIndex).toBe(0);
-    await act(async()=>{track().focus();track().dispatchEvent(new KeyboardEvent('keydown',{key:'End',bubbles:true}))});
-    expect(document.activeElement).toBe(links()[36]);expect(track().scrollLeft).toBeGreaterThan(4400);
-    await act(async()=>links()[36].dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowLeft',bubbles:true})));
-    expect(document.activeElement).toBe(links()[35]);
-    await act(async()=>links()[35].dispatchEvent(new KeyboardEvent('keydown',{key:'Home',bubbles:true})));
-    expect(document.activeElement).toBe(links()[0]);
+  it("rebases both seams and restores logical position and pause preference",async()=>{
+    await showGarden(7);const period=7*136;
+    await scroll(period*2+37);expect(track().scrollLeft).toBe(period+37);
+    await scroll(period-17);expect(track().scrollLeft).toBe(period*2-17);
+    await click('Pause');await click('Toggle garden');await click('Toggle garden');
+    expect(track().scrollLeft).toBeCloseTo(period*2-17);expect(gardenButton('Play')).toBeDefined();
+    await showGarden(1);expect(track().scrollLeft).toBe(0);expect(links()[0].textContent).toContain(gardenPlants[0].name);
+    await showGarden(7);expect(track().scrollLeft).toBe(period);
   });
-  it("uses immediate scrolling when reduced motion is requested",async()=>{
+  it("rests when all entries fit and recalculates on resize",async()=>{
+    width=1200;await showGarden(6);expect(gardenButton('Pause')).toBeUndefined();expect(links()).toHaveLength(6);expect(track().children).toHaveLength(6);
+    await act(async()=>{width=400;resize()});expect(gardenButton('Pause')).toBeDefined();
+    await click('Scroll garden right');await advance(160);const offset=track().scrollLeft;
+    await act(async()=>{width=500;resize()});expect(track().scrollLeft).toBeCloseTo(offset);
+    await act(async()=>{width=1200;resize()});expect(track().scrollLeft).toBe(0);expect(track().children).toHaveLength(6);
+  });
+  it("keeps long names and wraps keyboard focus without remounting entries",async()=>{
+    await showGarden(7);expect(links()[0].hasAttribute('title')).toBe(false);
+    await act(async()=>{track().focus();track().dispatchEvent(new KeyboardEvent('keydown',{key:'End',bubbles:true}))});expect(document.activeElement).toBe(links()[6]);
+    await act(async()=>links()[6].dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true})));expect(document.activeElement).toBe(links()[0]);
+    await act(async()=>links()[0].dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowLeft',bubbles:true})));expect(document.activeElement).toBe(links()[6]);
+    await act(async()=>links()[6].dispatchEvent(new KeyboardEvent('keydown',{key:'Home',bubbles:true})));expect(document.activeElement).toBe(links()[0]);
+    expect(gardenButton('Play')).toBeDefined();const left=track().scrollLeft;await advance(5000);expect(track().scrollLeft).toBe(left);
+  });
+  it("pauses on hover, hidden documents, offscreen regions, and overlays without catching up",async()=>{
+    await showGarden(7);await advance(2200);const left=track().scrollLeft;
+    await act(async()=>interactiveHost!.querySelector('.garden-card')!.dispatchEvent(new MouseEvent('mouseover',{bubbles:true})));await advance(5000);expect(track().scrollLeft).toBe(left);
+    await act(async()=>interactiveHost!.querySelector('.garden-card')!.dispatchEvent(new MouseEvent('mouseout',{bubbles:true})));await advance(1000);expect(track().scrollLeft).toBeCloseTo(left+18);
+    await act(async()=>intersect([{isIntersecting:false}]));const offscreen=track().scrollLeft;await advance(3000);expect(track().scrollLeft).toBe(offscreen);
+    await act(async()=>intersect([{isIntersecting:true}]));
+    await act(async()=>{vi.spyOn(document,'hidden','get').mockReturnValue(true);document.dispatchEvent(new Event('visibilitychange'))});await advance(3000);expect(track().scrollLeft).toBe(offscreen);
+    await act(async()=>{vi.spyOn(document,'hidden','get').mockReturnValue(false);document.dispatchEvent(new Event('visibilitychange'))});
+    await showGarden(7,true);await advance(3000);expect(track().scrollLeft).toBe(offscreen);
+  });
+  it("drags across a seam, suppresses the click, and resumes after the cooldown",async()=>{
+    await showGarden(7);const period=7*136;
+    await act(async()=>{track().dispatchEvent(pointer('pointerdown',100));track().dispatchEvent(pointer('pointermove',200))});expect(track().scrollLeft).toBe(period*2-100);
+    await act(async()=>track().dispatchEvent(pointer('pointermove',220)));expect(track().scrollLeft).toBe(period*2-120);
+    await act(async()=>track().dispatchEvent(pointer('pointerup',220)));
+    const click=new MouseEvent('click',{bubbles:true,cancelable:true});await act(async()=>links()[0].dispatchEvent(click));expect(click.defaultPrevented).toBe(true);
+    const left=track().scrollLeft;await advance(4000);expect(track().scrollLeft).toBe(left);await advance(1000);expect(track().scrollLeft).toBeCloseTo(left+18);
+  });
+  it("has a stable play control when pointer focus precedes a click",async()=>{
+    await showGarden(7);const pause=gardenButton('Pause');
+    await act(async()=>{pause.dispatchEvent(pointer('pointerdown',0));pause.focus();pause.dispatchEvent(pointer('pointerup',0));pause.click()});expect(gardenButton('Play')).toBe(pause);
+    await act(async()=>{pause.dispatchEvent(pointer('pointerdown',0));pause.click()});expect(gardenButton('Pause')).toBe(pause);expect(document.activeElement).toBe(pause);
+  });
+  it("disables autoplay under reduced motion but retains immediate manual wrapping",async()=>{
     vi.stubGlobal('matchMedia',vi.fn(()=>({matches:true,addEventListener:vi.fn(),removeEventListener:vi.fn()})));
-    await showGarden(7);await act(async()=>gardenButton('Scroll garden right').click());
-    expect(scrollTo).toHaveBeenLastCalledWith({left:136,behavior:'auto'});
-  });
-  it("supports mouse dragging without accidentally opening the dragged companion",async()=>{
-    await showGarden(7);
-    const pointer=(type:string,x:number,buttons=1)=>{const event=new MouseEvent(type,{clientX:x,button:0,buttons,bubbles:true,cancelable:true});Object.defineProperties(event,{pointerType:{value:'mouse'},pointerId:{value:1}});return event};
-    await act(async()=>{track().dispatchEvent(pointer('pointerdown',220));track().dispatchEvent(pointer('pointermove',120));track().dispatchEvent(pointer('pointerup',120))});
-    expect(track().scrollLeft).toBe(100);expect(track().classList.contains('is-dragging')).toBe(false);
-    const click=new MouseEvent('click',{bubbles:true,cancelable:true});await act(async()=>{links()[0].dispatchEvent(click)});expect(click.defaultPrevented).toBe(true);
-    await act(async()=>{track().dispatchEvent(pointer('pointerdown',220));track().dispatchEvent(pointer('pointermove',120,0))});
-    expect(track().scrollLeft).toBe(100);expect(track().classList.contains('is-dragging')).toBe(false);
+    await showGarden(7);const start=track().scrollLeft;await advance(5000);expect(track().scrollLeft).toBe(start);expect(gardenButton('Motion off').disabled).toBe(true);
+    await click('Scroll garden left');expect(track().scrollLeft).toBe(7*136+6*136);
   });
 });

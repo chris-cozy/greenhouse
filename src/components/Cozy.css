@@ -1,22 +1,5 @@
-:root {
-  --bg: #101a14;
-  --panel: #19271e;
-  --panel2: #23362a;
-  --cream: #f3ecdd;
-  --muted: #b0c0ad;
-  --green: #b6d0a5;
-  --green2: #c8deba;
-  --line: #354939;
-  --control-radius: 12px;
-  --panel-radius: 20px;
-  --ease-settle: cubic-bezier(.2,.8,.2,1);
-  background: var(--bg);
-  color: var(--cream);
-  font-size: 16px;
-}
-
 body { background: radial-gradient(ellipse at 85% 0, #34472b33, transparent 45%), var(--bg); }
-.sidebar { background: #132017; }
+.sidebar { background: var(--sidebar); }
 .sidebar nav a { color: var(--muted); border-radius: var(--control-radius); }
 .sidebar nav a.active { background: var(--panel2); color: var(--cream); box-shadow: inset 3px 0 var(--green); }
 .brand { color: var(--cream); }
@@ -28,10 +11,10 @@ body { background: radial-gradient(ellipse at 85% 0, #34472b33, transparent 45%)
 .button.primary { background: var(--cream); color: var(--bg); box-shadow: 0 3px 10px #07100922; }
 .button.ghost { background: var(--panel2); border-color: var(--line); color: var(--cream); }
 .search-trigger { background: var(--panel); color: var(--muted); }
-.field input, .field select, .field textarea { background: #132018; border-color: #4a614e; color: var(--cream); }
+.field input, .field select, .field textarea { background: var(--input); border-color: #4a614e; color: var(--cream); }
 .field > span, .field small { color: var(--muted); font-size: 12px; }
 .field textarea { line-height: 1.6; }
-.field input::placeholder, .field textarea::placeholder { color: #92a48f; }
+.field input::placeholder, .field textarea::placeholder { color: var(--muted); }
 .form-fields { display: contents; border: 0; padding: 0; margin: 0; min-width: 0; }
 .field { min-width: 0; }
 .icon-button { min-width: 44px; min-height: 44px; display: inline-grid; place-items: center; border-radius: 12px; }
@@ -46,8 +29,9 @@ body { background: radial-gradient(ellipse at 85% 0, #34472b33, transparent 45%)
 button:disabled { transform: none; }
 :where(button, a, input, select, textarea, summary):focus-visible { outline: 2px solid var(--green); outline-offset: 4px; }
 
-.modal-backdrop { background: #060e09b8; animation: veil-enter 200ms ease both; }
+.modal-backdrop { z-index:100; background: #060e09b8; animation: veil-enter 200ms ease both; }
 .modal { background: var(--panel); border-color: #52684d; border-radius: var(--panel-radius); box-shadow: 0 24px 80px #02090488; display: flex; flex-direction: column; animation: dialog-enter 200ms var(--ease-settle) both; }
+.modal.has-entered { animation:none; }
 .modal > header { flex-shrink: 0; align-items: flex-start; }
 .modal > header > div { min-width: 0; overflow-wrap: anywhere; }
 .modal > header .icon-button { flex-shrink: 0; }
@@ -190,7 +174,7 @@ button:disabled { transform: none; }
 .terrarium-profile .section-heading { flex-wrap:wrap; gap:12px; }
 .terrarium-profile .section-heading > span { font-size:12px; color:var(--muted); }
 
-@keyframes dialog-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes dialog-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @keyframes dialog-exit { to { opacity: 0; transform: translateY(8px); } }
 @keyframes veil-enter { from { opacity: 0; } to { opacity: 1; } }
 @keyframes veil-exit { to { opacity: 0; } }

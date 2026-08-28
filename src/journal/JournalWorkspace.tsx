@@ -5,6 +5,7 @@ import { api, ApiError } from "../api";
 import type { AppOptions, JournalEntry, JournalTag } from "../shared/types";
 import { journalExcerpt, timestampLabel, toLocalInput } from "../shared/journal";
 import { ChipsInput, Confirm, EmptyState, ErrorNote, Loading, Modal } from "../components/Common";
+import { useContentWidth, useOverlay, usePresence } from "../components/Interaction";
 import { Autosave, deletedEntryRecovery, draftOf } from "./Autosave";
 import { DiaryTagManager, DiaryTagPicker } from "./DiaryTags";
 import { RichEditor, type RichEditorHandle } from "./RichEditor";
@@ -60,16 +61,20 @@ export function JournalWorkspace({options,refreshOptions}:{options:AppOptions;re
   const [entries,setEntries]=useState<JournalEntry[]>([]),[tags,setTags]=useState<JournalTag[]>([]),[active,setActive]=useState<JournalEntry|null>(null);
   const [loading,setLoading]=useState(true),[error,setError]=useState(""),[entryError,setEntryError]=useState(""),[q,setQ]=useState(""),[tag,setTag]=useState("");
   const [drawer,setDrawer]=useState(false),[manager,setManager]=useState(false),[epoch,setEpoch]=useState(0),[creating,setCreating]=useState(false);
+  const layout=useContentWidth();
+  const drawerPresence=usePresence(drawer&&!layout.wide);
+  useOverlay(drawerPresence.present);
+  useEffect(()=>{if(layout.wide)setDrawer(false)},[layout.wide]);
   const loadGeneration=useRef(0),paneFlush=useRef<(()=>Promise<boolean>)|null>(null);
   const excerptCache=useRef(new WeakMap<JournalEntry,string>());
   const excerpt=(entry:JournalEntry)=>{let value=excerptCache.current.get(entry);if(value===undefined){value=journalExcerpt(entry.content,Number.MAX_SAFE_INTEGER);excerptCache.current.set(entry,value)}return value};
   const indexElement=useRef<HTMLElement>(null);
   useEffect(()=>{
-    if(!drawer)return;
+    if(!drawerPresence.present)return;
     const previous=document.activeElement as HTMLElement|null;
-    const overflow=document.body.style.overflow;document.body.style.overflow="hidden";
     indexElement.current?.querySelector<HTMLInputElement>('input')?.focus();
     const key=(event:KeyboardEvent)=>{
+      if(Array.from(document.querySelectorAll('[role="dialog"]')).at(-1)!==indexElement.current)return;
       if(event.key==="Escape"){event.preventDefault();setDrawer(false)}
       if(event.key==="Tab"){
         const targets=Array.from(indexElement.current?.querySelectorAll<HTMLElement>('button,input,a[href]')||[]).filter(element=>element.getClientRects().length>0);
@@ -77,8 +82,8 @@ export function JournalWorkspace({options,refreshOptions}:{options:AppOptions;re
         else if(!event.shiftKey&&document.activeElement===targets.at(-1)){event.preventDefault();targets[0]?.focus()}
       }
     };
-    window.addEventListener("keydown",key);return()=>{document.body.style.overflow=overflow;window.removeEventListener("keydown",key);if(previous?.isConnected)previous.focus()};
-  },[drawer]);
+    window.addEventListener("keydown",key);return()=>{window.removeEventListener("keydown",key);const remaining=Array.from(document.querySelectorAll('[role="dialog"]')).at(-1);if(previous?.isConnected&&(!remaining||remaining.contains(previous)))previous.focus()};
+  },[drawerPresence.present]);
   const loadLibrary=useCallback(async()=>{const generation=++loadGeneration.current;try{const [list,catalog]=await Promise.all([api.get<JournalEntry[]>("/api/journal"),api.get<JournalTag[]>("/api/journal-tags")]);if(generation!==loadGeneration.current)return;setEntries(list);setTags(catalog);setError("")}catch(e){if(generation===loadGeneration.current)setError((e as Error).message)}finally{if(generation===loadGeneration.current)setLoading(false)}},[]);
   useEffect(()=>{void loadLibrary()},[loadLibrary]);
   useEffect(()=>{if(id||loading||!entries.length)return;let last:string|null=null;try{last=localStorage.getItem("greenhouse-last-diary-entry")}catch{}navigate(`/journal/${entries.some(e=>e.id===last)?last:entries[0].id}`,{replace:true})},[id,loading,entries,navigate]);
@@ -87,12 +92,12 @@ export function JournalWorkspace({options,refreshOptions}:{options:AppOptions;re
   const create=async()=>{const from=currentPath.current;setCreating(true);try{if(paneFlush.current&&!await paneFlush.current())return;const entry=await api.post<JournalEntry>("/api/journal",{title:"Untitled entry",content:"",createdAt:new Date().toISOString(),timezoneOffset:new Date().getTimezoneOffset()});if(!alive.current)return;setEntries(list=>[entry,...list]);if(currentPath.current!==from)return;setQ("");setTag("");navigate(`/journal/${entry.id}`)}catch(e){if(alive.current)setError((e as Error).message)}finally{if(alive.current)setCreating(false)}};
   const filtered=entries.filter(entry=>(!tag||entry.tags.some(t=>t.toLocaleLowerCase()===tag.toLocaleLowerCase()))&&(!q||`${entry.title} ${excerpt(entry)} ${entry.tags.join(" ")}`.toLocaleLowerCase().includes(q.toLocaleLowerCase())));
   const pageError=entryError||error;
-  return <div className="diary-page">
+  return <div ref={layout.ref} className={`diary-page ${layout.wide?"is-wide":""}`}>
     <header className="diary-heading"><div><span className="eyebrow">A little room to reflect</span><h1>Greenhouse Diary</h1></div><div><button className="button ghost diary-list-toggle" onClick={()=>setDrawer(true)}><List size={16}/> Entries</button><button className="button primary" disabled={creating} onClick={()=>void create()}><Plus size={16}/> New entry</button></div></header>
     {pageError&&<div className="diary-page-error"><ErrorNote message={pageError}/><button className="text-button" onClick={async()=>{if(paneFlush.current&&!await paneFlush.current())return;await loadLibrary();setEpoch(n=>n+1)}}>Refresh diary</button></div>}
     <div className="diary-workspace">
-      {drawer&&<div className="diary-drawer-backdrop" onClick={()=>setDrawer(false)}/>}
-      <aside ref={indexElement} className={`diary-index ${drawer?"is-open":""}`} role={drawer?"dialog":undefined} aria-modal={drawer?true:undefined} aria-label="Diary entries">
+      {drawerPresence.present&&<div className={`diary-drawer-backdrop ${drawerPresence.exiting?"is-exiting":""}`} onClick={()=>setDrawer(false)}/>}
+      <aside ref={indexElement} className={`diary-index ${drawerPresence.present?"is-open":""} ${drawerPresence.exiting?"is-exiting":""}`} role={drawerPresence.present?"dialog":undefined} aria-modal={drawerPresence.present?true:undefined} aria-label="Diary entries">
         <button className="diary-drawer-close icon-button" aria-label="Close entry list" onClick={()=>setDrawer(false)}><X/></button>
         <label className="diary-search"><Search size={15}/><input aria-label="Search diary" value={q} onChange={e=>setQ(e.target.value)} placeholder="Search your diary…"/></label>
         <div className="diary-index-heading"><span>{tag?`#${tag}`:"Recent entries"}</span><small>{filtered.length}</small></div>

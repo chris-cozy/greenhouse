@@ -4,7 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api";
 import type { DashboardData } from "../shared/types";
 import { EmptyState, ErrorNote, Loading, RefreshNote, prettyStatus, shortDate, useLoad } from "./Common";
-import { Garden } from "./Garden";
+import { Garden, type GardenViewState } from "./Garden";
 export { Garden } from "./Garden";
 import { useMutation } from "./Interaction";
 
@@ -13,7 +13,7 @@ function Reminder({item,onDismissed}:{item:DashboardData["upcomingReminders"][nu
   return <article><span>{item.plantName}</span><strong>{item.customLabel||prettyStatus(item.activityType)}</strong><small>{shortDate(item.nextReminderDate)}</small><button aria-label={`Dismiss reminder for ${item.plantName}`} disabled={mutation.busy} onClick={()=>void mutation.run(()=>api.post(`/api/care/${item.id}/dismiss`,{}),onDismissed)}><Check/></button>{mutation.error&&<ErrorNote message={mutation.error}/>}</article>;
 }
 
-export function Dashboard({onAddPlant,onAddTerrarium,gardenScroll,onGardenScroll}:{onAddPlant:()=>void;onAddTerrarium?:()=>void;gardenScroll?:number;onGardenScroll?:(position:number)=>void}){
+export function Dashboard({onAddPlant,onAddTerrarium,gardenState,onGardenStateChange}:{onAddPlant:()=>void;onAddTerrarium?:()=>void;gardenState?:GardenViewState;onGardenStateChange?:(state:GardenViewState)=>void}){
   const {data,loading,error,reload,refreshing,refreshError}=useLoad<DashboardData>("/api/dashboard");
   const navigate=useNavigate();
   if(loading)return <div className="content"><Loading/></div>;
@@ -27,7 +27,7 @@ export function Dashboard({onAddPlant,onAddTerrarium,gardenScroll,onGardenScroll
       <p>All of the plants under your care</p>
     </div>{!empty&&<div className="home-create-actions"><button className="button primary" onClick={onAddPlant}><Plus size={18}/> Add plant</button>{onAddTerrarium&&<button className="button ghost" onClick={onAddTerrarium}><Sprout size={18}/> Add terrarium</button>}</div>}</section>
     <section className="summary-grid">
-      <Garden plants={data.gardenPlants} terrariums={data.gardenTerrariums} initialScroll={gardenScroll} onScrollPositionChange={onGardenScroll}/>
+      <Garden plants={data.gardenPlants} terrariums={data.gardenTerrariums} initialState={gardenState} onViewStateChange={onGardenStateChange}/>
     </section>
     {data.upcomingReminders.length>0&&<section className="reminder-strip"><div><span className="eyebrow">Optional reminders</span><h2>Coming up, whenever you’re ready</h2></div><div className="reminder-items">{data.upcomingReminders.slice(0,4).map(item=><Reminder key={item.id} item={item} onDismissed={()=>void reload({background:true})}/>)}</div></section>}
     <RefreshNote refreshing={refreshing} error={refreshError} onRetry={()=>void reload({background:true})}/>

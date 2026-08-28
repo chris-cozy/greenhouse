@@ -19,8 +19,8 @@
 .attention-notification {
   display: grid;
   place-items: center;
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   padding: 0;
   border: 1px solid #554b32;
   border-radius: 50%;
@@ -68,122 +68,9 @@
   border-radius: 10px;
   background: #d8ad63;
   color: #2f230f;
-  font-size: 9px;
+  font-size: 12px;
   font-style: normal;
   font-weight: 800;
-}
-
-.attention-dropdown {
-  position: absolute;
-  z-index: 60;
-  top: calc(100% + 10px);
-  right: 0;
-  width: min(360px, calc(100vw - 32px));
-  max-height: min(480px, calc(100vh - 105px));
-  overflow-y: auto;
-  border: 1px solid #3b4f40;
-  border-radius: 16px;
-  background: #101813;
-  box-shadow: 0 24px 70px #000b;
-  scrollbar-color: #58705d66 transparent;
-  scrollbar-width: thin;
-}
-
-.attention-dropdown > header {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  padding: 17px 18px 14px;
-  border-bottom: 1px solid var(--line);
-}
-
-.attention-dropdown > header strong {
-  color: #eee5d1;
-  font: 500 20px/1.2 Georgia, serif;
-}
-
-.attention-group {
-  padding: 10px;
-}
-
-.attention-group + .attention-group {
-  border-top: 1px solid var(--line);
-}
-
-.attention-group > span {
-  display: block;
-  padding: 3px 8px 7px;
-  color: #798d7d;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.11em;
-  text-transform: uppercase;
-}
-
-.attention-group a {
-  display: grid;
-  grid-template-columns: 36px minmax(0, 1fr) 16px;
-  gap: 10px;
-  align-items: center;
-  padding: 9px 8px;
-  border-radius: 10px;
-  color: #dfe7e0;
-  text-decoration: none;
-}
-
-.attention-group a:hover,
-.attention-group a:focus-visible {
-  background: #1a271e;
-  outline: 0;
-}
-
-.attention-group a:focus-visible {
-  box-shadow: inset 0 0 0 2px #78967a;
-}
-
-.attention-group a > span:nth-child(2) {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-}
-
-.attention-group a strong {
-  overflow: hidden;
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.attention-group a small {
-  margin-top: 3px;
-  color: var(--muted);
-  font-size: 10px;
-}
-
-.attention-group a > svg {
-  width: 14px;
-  height: 14px;
-  color: #839987;
-}
-
-.attention-item-icon {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: #203424;
-  color: #9dcc91;
-}
-
-.attention-item-icon.terrarium {
-  background: #342b1b;
-  color: #d9b56b;
-}
-
-.attention-item-icon svg {
-  width: 17px;
-  height: 17px;
 }
 
 /* A continuous garden, with native touch and trackpad scrolling. */
@@ -191,13 +78,12 @@
 .garden-card-header { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:22px 24px 18px; }
 .garden-card-header > div:first-child { min-width:0; }
 .garden-card-header h2 { margin:7px 0 0; color:var(--cream); font:500 23px/1.25 Georgia,serif; }
-.garden-card-header > div:last-child { display:flex; gap:8px; flex-shrink:0; }
-.garden-card-header a { display:inline-flex; align-items:center; gap:7px; min-height:44px; padding:8px 12px; border:1px solid var(--line); border-radius:12px; color:var(--muted); font-size:13px; text-decoration:none; }
-.garden-card-header a:hover { background:var(--panel2); color:var(--cream); }
-.garden-card-header a svg { width:16px; height:16px; }
+.garden-links a { display:inline-flex; align-items:center; gap:7px; min-height:44px; padding:8px 12px; border:1px solid var(--line); border-radius:12px; color:var(--muted); font-size:13px; text-decoration:none; }
+.garden-links a:hover { background:var(--panel2); color:var(--cream); }
+.garden-links a svg { width:16px; height:16px; }
 .garden-scene { position:relative; isolation:isolate; background:#243d25 url('/images/garden-collection-grass-wide.png') center/auto 100% no-repeat; }
 .garden-scene::before { content:''; position:absolute; z-index:-1; inset:0; background:linear-gradient(180deg,#19321eb3,#112619b8); pointer-events:none; }
-.garden-track { position:relative; display:grid; grid-auto-flow:column; grid-auto-columns:clamp(124px,calc((100% - 60px)/6),180px); grid-template-rows:auto; align-items:stretch; gap:12px; min-height:210px; padding:16px 24px 24px; margin:0; list-style:none; overflow-x:auto; overflow-y:hidden; overscroll-behavior-x:contain; scroll-snap-type:x proximity; scroll-padding-inline:24px; scrollbar-width:thin; scrollbar-color:#b6d0a580 #10251666; cursor:grab; user-select:none; }
+.garden-track { position:relative; display:grid; grid-auto-flow:column; grid-auto-columns:clamp(124px,calc((100% - 60px)/6),180px); grid-template-rows:auto; align-items:stretch; gap:12px; min-height:210px; padding:16px 24px 24px; margin:0; list-style:none; overflow-x:auto; overflow-y:hidden; overscroll-behavior-x:contain; scroll-snap-type:none; scroll-padding-inline:24px; scrollbar-width:thin; scrollbar-color:#b6d0a580 #10251666; cursor:grab; user-select:none; }
 .garden-track > li { min-width:0; display:flex; scroll-snap-align:start; }
 .garden-track:focus-visible { outline:2px solid var(--green); outline-offset:-4px; }
 .garden-track.is-dragging { cursor:grabbing; scroll-snap-type:none; }
@@ -209,7 +95,6 @@
 .garden-item:active .spirit { transform:scale(.98); }
 .garden-item-label { font:400 14px/1.4 Georgia,serif; text-align:center; overflow-wrap:anywhere; max-width:100%; }
 .garden-controls { display:flex; justify-content:space-between; align-items:center; gap:16px; padding:12px 20px; border-top:1px solid var(--line); color:var(--muted); font-size:13px; }
-.garden-controls > div:first-child { min-width:0; display:grid; gap:5px; }
 .garden-controls small { font-size:12px; line-height:1.45; }
 .garden-arrows { display:flex; gap:8px; flex-shrink:0; }
 .garden-arrows button { background:var(--panel2); color:var(--cream); border:1px solid var(--line); }
@@ -222,4 +107,17 @@
  .garden-card-header h2 { font-size:22px; }
  .garden-track { grid-auto-columns:112px; min-height:180px; padding:14px 16px 20px; gap:10px; scroll-padding-inline:16px; }
  .garden-controls { padding:12px 16px; gap:10px; }
+}
+
+.garden-controls { flex-wrap:wrap; border-top:0; padding-top:0; }
+.garden-playback { display:flex; align-items:center; gap:8px; }
+.garden-links { display:flex; gap:8px; flex-wrap:wrap; margin-left:auto; }
+.garden-playback > button { min-width:100px; }
+.garden-footer { display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px 16px; padding:16px 24px; color:var(--muted); font-size:13px; }
+.garden-footer small { font-size:12px; line-height:1.5; }
+.garden-track.is-looping { overflow-anchor:none; }
+@media(max-width:620px) {
+ .garden-controls { align-items:flex-start; }
+ .garden-links { margin-left:0; }
+ .garden-footer { padding-inline:16px; }
 }

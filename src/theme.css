@@ -1,0 +1,33 @@
+:root {
+  --forest: #101a14;
+  --surface: #19271e;
+  --surface-raised: #23362a;
+  --reference-surface: #101813;
+  --writing-surface: #0f1712;
+  --writing-index: #121a15;
+  --text: #f3ecdd;
+  --text-secondary: #b0c0ad;
+  --accent: #b6d0a5;
+  --bg: var(--forest);
+  --panel: var(--surface);
+  --panel2: var(--surface-raised);
+  --cream: var(--text);
+  --muted: var(--text-secondary);
+  --green: var(--accent);
+  --green2: #c8deba;
+  --line: #354939;
+  --input: #132018;
+  --sidebar: #132017;
+  --amber: #eddbad;
+  --danger: #f0aba1;
+  --warning-surface: #302e1f;
+  --font-heading: Georgia, serif;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-synthesis: none;
+  --control-radius: 12px;
+  --panel-radius: 20px;
+  --ease-settle: cubic-bezier(.2,.8,.2,1);
+  background: var(--bg);
+  color: var(--cream);
+  font-size: 16px;
+}

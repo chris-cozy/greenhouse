@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState, type SetStateAction } from "react";
 import { api } from "../api";
 
-type LoadState<T> = { path: string; data: T | null; error: string; loading: boolean; refreshing: boolean; refreshError: string };
+type LoadState<T> = { path: string | null; data: T | null; error: string; loading: boolean; refreshing: boolean; refreshError: string };
 
 /** Background reads keep the current resource mounted; navigation never reuses another resource's data. */
-export function useLoad<T>(path: string, deps: unknown[] = []) {
-  const [state, setState] = useState<LoadState<T>>({ path, data: null, error: "", loading: true, refreshing: false, refreshError: "" });
+export function useLoad<T>(path: string | null, deps: unknown[] = []) {
+  const [state, setState] = useState<LoadState<T>>({ path, data: null, error: "", loading: path !== null, refreshing: false, refreshError: "" });
   const current = useRef(state);
   const currentPath = useRef(path);
   const generation = useRef(0);
@@ -13,7 +13,7 @@ export function useLoad<T>(path: string, deps: unknown[] = []) {
   currentPath.current = path;
 
   const reload = useCallback(async ({ background = false }: { background?: boolean } = {}) => {
-    if (!mounted.current || currentPath.current !== path) return;
+    if (!mounted.current || currentPath.current !== path || path === null) return;
     const request = ++generation.current;
     const previous = current.current;
     const sameResource = previous.path === path;
@@ -41,7 +41,11 @@ export function useLoad<T>(path: string, deps: unknown[] = []) {
 
   useEffect(() => {
     mounted.current = true;
-    void reload();
+    if (path === null) {
+      generation.current++;
+      current.current = { path, data: null, error: "", loading: false, refreshing: false, refreshError: "" };
+      setState(current.current);
+    } else void reload();
     return () => { mounted.current = false; generation.current++; };
   }, [reload, ...deps]);
 
@@ -55,7 +59,7 @@ export function useLoad<T>(path: string, deps: unknown[] = []) {
   const sameResource = state.path === path;
   return {
     data: sameResource ? state.data : null, setData, reload,
-    loading: !sameResource || state.loading, error: sameResource ? state.error : "",
+    loading: path !== null && (!sameResource || state.loading), error: sameResource ? state.error : "",
     refreshing: sameResource && state.refreshing, refreshError: sameResource ? state.refreshError : "",
   };
 }

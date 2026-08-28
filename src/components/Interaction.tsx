@@ -1,5 +1,37 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Check } from "lucide-react";
+
+const overlays = new Set<symbol>();
+let unlockedOverflow = "";
+const overlayListeners = new Set<() => void>();
+const subscribeOverlays = (listener: () => void) => { overlayListeners.add(listener); return () => { overlayListeners.delete(listener); }; };
+const notifyOverlays = () => overlayListeners.forEach(listener => listener());
+export function useOverlay(open: boolean) {
+  useEffect(() => {
+    if (!open) return;
+    const key = Symbol();
+    if (!overlays.size) { unlockedOverflow = document.body.style.overflow; document.body.style.overflow = "hidden"; }
+    overlays.add(key); notifyOverlays();
+    return () => { overlays.delete(key); if (!overlays.size) document.body.style.overflow = unlockedOverflow; notifyOverlays(); };
+  }, [open]);
+}
+export function useOverlaysOpen() { return useSyncExternalStore(subscribeOverlays, () => overlays.size > 0, () => false); }
+
+/** Respond to usable content width, including sidebar changes, without replacing children. */
+export function useContentWidth(minimum = 900) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [wide, setWide] = useState(false);
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    const measure = () => { const style = getComputedStyle(element); setWide(element.clientWidth - (parseFloat(style.paddingLeft) || 0) - (parseFloat(style.paddingRight) || 0) >= minimum); };
+    measure();
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+    observer?.observe(element); window.addEventListener("resize", measure);
+    return () => { observer?.disconnect(); window.removeEventListener("resize", measure); };
+  }, [minimum]);
+  return { ref, wide };
+}
 
 export function useReducedMotion() {
   const [reduced, setReduced] = useState(() => typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);

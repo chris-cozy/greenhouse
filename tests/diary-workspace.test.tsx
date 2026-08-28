@@ -33,6 +33,15 @@ async function title(value:string){await act(async()=>{const input=host.querySel
 async function click(label:string){await act(async()=>{Array.from(host.querySelectorAll("button")).find(button=>button.textContent===label)!.click()})}
 
 describe("diary workspace navigation",()=>{
+  it("keeps the same editor and selection while the index becomes a drawer",async()=>{
+    let width=1200;const size=vi.spyOn(HTMLElement.prototype,'clientWidth','get').mockImplementation(()=>width);
+    try {
+      await open();const editor=host.querySelector<HTMLTextAreaElement>('[aria-label="Test document"]')!;editor.focus();editor.setSelectionRange(2,5);
+      await act(async()=>{width=390;window.dispatchEvent(new Event('resize'))});await act(async()=>host.querySelector<HTMLButtonElement>('.diary-list-toggle')!.click());
+      expect(host.querySelector('[aria-label="Test document"]')).toBe(editor);expect(editor.selectionStart).toBe(2);expect(editor.selectionEnd).toBe(5);
+      await act(async()=>{width=1200;window.dispatchEvent(new Event('resize'))});expect(host.querySelector('[aria-label="Test document"]')).toBe(editor);expect(api.put).not.toHaveBeenCalled();
+    } finally {size.mockRestore()}
+  });
   it("opens unchanged under Strict Mode and flushes before switching entries",async()=>{
     await open();expect(api.put).not.toHaveBeenCalled();await title("Just typed");
     await act(async()=>{await router.navigate("/journal/two")});

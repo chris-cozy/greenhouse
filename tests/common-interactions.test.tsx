@@ -14,10 +14,16 @@ beforeEach(()=>{
   host=document.createElement("div");document.body.append(host);root=createRoot(host);
 });
 afterEach(async()=>{await act(async()=>root.unmount());host.remove();vi.useRealTimers();vi.restoreAllMocks();vi.unstubAllGlobals()});
-function Reader({path}:{path:string}){reader=useLoad<{name:string}>(path);return <div data-testid="content">{reader.data?.name||"Loading"}</div>}
-async function read(path="/one"){await act(async()=>root.render(<StrictMode><Reader path={path}/></StrictMode>))}
+function Reader({path}:{path:string|null}){reader=useLoad<{name:string}>(path);return <div data-testid="content">{reader.data?.name||"Loading"}</div>}
+async function read(path:string|null="/one"){await act(async()=>root.render(<StrictMode><Reader path={path}/></StrictMode>))}
 
 describe("resource refresh lifecycle",()=>{
+  it("skips disabled resources and ignores an in-flight read when disabled",async()=>{
+    await read(null);expect(api.get).not.toHaveBeenCalled();expect(reader.loading).toBe(false);
+    const pending=deferred<{name:string}>();vi.mocked(api.get).mockReturnValue(pending.promise);await read("/one");expect(reader.loading).toBe(true);
+    await read(null);await act(async()=>pending.resolve({name:"Late"}));expect(reader.data).toBeNull();expect(reader.loading).toBe(false);
+    const count=vi.mocked(api.get).mock.calls.length;await act(async()=>{await reader.reload()});expect(api.get).toHaveBeenCalledTimes(count);
+  });
   it("preserves mounted content during a background refresh",async()=>{
     vi.mocked(api.get).mockResolvedValueOnce({name:"Original"}).mockResolvedValueOnce({name:"Original"});await read();
     const content=host.firstElementChild,pending=deferred<{name:string}>();vi.mocked(api.get).mockReturnValueOnce(pending.promise);
@@ -63,6 +69,13 @@ async function openDialog(busy=false){
   const trigger=host.querySelector<HTMLButtonElement>('button')!;trigger.focus();await act(async()=>trigger.click());return trigger;
 }
 describe("controlled dialog presence",()=>{
+  it("keeps the replacement dialog focused and scroll locked while the first exits",async()=>{
+    vi.useFakeTimers();
+    function Replace(){const [first,setFirst]=useState(false),[second,setSecond]=useState(false);return <><button onClick={()=>setFirst(true)}>Open first</button><Modal open={first} title="First" onClose={()=>setFirst(false)}><button onClick={()=>{setFirst(false);setSecond(true)}}>Next dialog</button></Modal><Modal open={second} title="Second" onClose={()=>setSecond(false)}><input aria-label="Second input"/></Modal></>}
+    await act(async()=>root.render(<Replace/>));await act(async()=>host.querySelector<HTMLButtonElement>('button')!.click());await act(async()=>Array.from(host.querySelectorAll('button')).find(b=>b.textContent==='Next dialog')!.click());
+    await act(async()=>vi.advanceTimersByTime(120));expect(document.activeElement).toBe(host.querySelector('input'));expect(document.body.style.overflow).toBe('hidden');
+    await act(async()=>window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true})));await act(async()=>vi.advanceTimersByTime(120));expect(document.body.style.overflow).not.toBe('hidden');
+  });
   it("keeps contents during exit then restores focus and scroll",async()=>{
     vi.useFakeTimers();const trigger=await openDialog();const input=host.querySelector<HTMLInputElement>('input')!;
     input.value="Still here";expect(document.body.style.overflow).toBe("hidden");

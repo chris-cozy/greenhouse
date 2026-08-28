@@ -1,9 +1,9 @@
 import { type FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
-import { AlertCircle, Check, ImagePlus, LoaderCircle, Plus, Search, Trash2, X } from "lucide-react";
+import { AlertCircle, Check, ImagePlus, LoaderCircle, Plus, Trash2, X } from "lucide-react";
 import { api } from "../api";
-import type { AppOptions, GlobalSearchResult, Photo } from "../shared/types";
-import { useNavigate } from "react-router-dom";
-import { usePresence, useMutation } from "./Interaction";
+import type { Photo } from "../shared/types";
+import { usePresence, useMutation, useOverlay } from "./Interaction";
+export { GlobalSearch } from "./GlobalSearch";
 export { useLoad } from "./useLoad";
 
 export const prettyStatus=(value:string)=>value.replaceAll("_"," ").replace(/\b\w/g,c=>c.toUpperCase());
@@ -12,26 +12,27 @@ export const splitTags=(value:string)=>value.split(",").map(x=>x.trim()).filter(
 
 export function PageHeader({eyebrow,title,description,action,children}:{eyebrow:string;title:string;description:string;action?:ReactNode;children?:ReactNode}){return <><section className="page-header"><div><span className="eyebrow">{eyebrow}</span><h1>{title}</h1><p>{description}</p></div>{action}</section>{children}</>}
 export function EmptyState({icon,title,copy,action}:{icon:ReactNode;title:string;copy:string;action?:ReactNode}){return <div className="empty-state"><div className="empty-icon">{icon}</div><h2>{title}</h2><p>{copy}</p>{action}</div>}
-export function Loading(){return <div className="loading"><LoaderCircle className="spin"/> Gathering your greenhouse…</div>}
+export function Loading(){return <div className="loading" role="status"><LoaderCircle className="spin" aria-hidden="true"/> Gathering your greenhouse…</div>}
 export function ErrorNote({message}:{message:string}){return <div className="error-note" role="alert"><AlertCircle size={17}/>{message}</div>}
 export function RefreshNote({refreshing,error,onRetry}:{refreshing:boolean;error:string;onRetry:()=>void}){return error?<div className="refresh-note" role="alert"><span>Saved changes are safe. This view could not refresh: {error}</span><button className="button ghost" onClick={onRetry}>Retry refresh</button></div>:refreshing?<div className="refresh-progress" role="status">Refreshing this view…</div>:null}
 export function Tags({items}:{items:string[]}){return items.length?<div className="tags">{items.map(tag=><span key={tag}>#{tag}</span>)}</div>:null}
 
-type ModalProps={title:string;subtitle?:string;onClose:()=>void;children:ReactNode;wide?:boolean;open?:boolean;busy?:boolean;onExited?:()=>void};
+type ModalProps={title:string;subtitle?:string;eyebrow?:string;className?:string;onClose:()=>void;children:ReactNode;wide?:boolean;open?:boolean;busy?:boolean;onExited?:()=>void};
 export function Modal({open=true,onExited,...props}:ModalProps){
   const {present,exiting}=usePresence(open);
   const wasPresent=useRef(present),afterExit=useRef(onExited);afterExit.current=onExited;
   useEffect(()=>{if(wasPresent.current&&!present)afterExit.current?.();wasPresent.current=present},[present]);
   return present?<ModalSurface {...props} exiting={exiting}/>:null;
 }
-function ModalSurface({title,subtitle,onClose,children,wide=false,busy=false,exiting}:{exiting:boolean}&ModalProps){
+function ModalSurface({title,subtitle,eyebrow="Greenhouse record",className="",onClose,children,wide=false,busy=false,exiting}:{exiting:boolean}&ModalProps){
+  useOverlay(true);
+  const [entered,setEntered]=useState(false);
   const dialog=useRef<HTMLElement>(null),close=useRef(onClose);close.current=onClose;
   // Capture before children commit: a legacy autoFocus input must not become its own return target.
   const returnFocus=useRef(typeof document==="undefined"?null:document.activeElement as HTMLElement|null);
   const blocked=useRef(false);blocked.current=busy||exiting;
   useEffect(()=>{
     const previous=returnFocus.current;
-    const previousOverflow=document.body.style.overflow;document.body.style.overflow="hidden";
     const top=()=>Array.from(document.querySelectorAll('[role="dialog"]')).at(-1)===dialog.current;
     if(!dialog.current?.contains(document.activeElement))(dialog.current?.querySelector<HTMLElement>('input:not(:disabled),textarea:not(:disabled),select:not(:disabled)')||dialog.current?.querySelector<HTMLElement>('button:not(:disabled)'))?.focus();
     const key=(e:KeyboardEvent)=>{
@@ -49,13 +50,13 @@ function ModalSurface({title,subtitle,onClose,children,wide=false,busy=false,exi
         targets[next]?.focus();
       }
     };
-    window.addEventListener("keydown",key);return()=>{window.removeEventListener("keydown",key);document.body.style.overflow=previousOverflow;if(previous?.isConnected)previous.focus({preventScroll:true})};
+    window.addEventListener("keydown",key);return()=>{window.removeEventListener("keydown",key);const remaining=Array.from(document.querySelectorAll('[role="dialog"]')).at(-1);if(previous?.isConnected&&(!remaining||remaining.contains(previous)))previous.focus({preventScroll:true})};
   },[]);
-  return <div className={`modal-backdrop ${exiting?"is-exiting":""}`} role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget&&!blocked.current)onClose()}}><section ref={dialog} tabIndex={-1} className={`modal ${wide?"wide":""}`} role="dialog" aria-modal="true" aria-busy={busy} aria-label={title} onKeyDownCapture={e=>{if(exiting&&e.key!=="Tab"){e.preventDefault();e.stopPropagation()}}} onSubmitCapture={e=>{if(exiting){e.preventDefault();e.stopPropagation()}}}><header><div><span className="eyebrow">Greenhouse record</span><h2>{title}</h2>{subtitle&&<p>{subtitle}</p>}</div><button type="button" disabled={busy||exiting} className="icon-button" onClick={onClose} aria-label="Close"><X/></button></header>{children}</section></div>;
+  return <div className={`modal-backdrop ${exiting?"is-exiting":""}`} role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget&&!blocked.current)onClose()}}><section ref={dialog} tabIndex={-1} className={`modal ${wide?"wide":""} ${entered?"has-entered":""} ${className}`} onAnimationEnd={e=>{if(e.target===e.currentTarget&&e.animationName==="dialog-enter")setEntered(true)}} role="dialog" aria-modal="true" aria-busy={busy} aria-label={title} onKeyDownCapture={e=>{if(exiting&&e.key!=="Tab"){e.preventDefault();e.stopPropagation()}}} onSubmitCapture={e=>{if(exiting){e.preventDefault();e.stopPropagation()}}}><header><div><span className="eyebrow">{eyebrow}</span><h2>{title}</h2>{subtitle&&<p>{subtitle}</p>}</div><button type="button" disabled={busy||exiting} className="icon-button" onClick={onClose} aria-label="Close"><X/></button></header>{children}</section></div>;
 }
 export function Confirm({title,copy,onConfirm,onClose}:{title:string;copy:string;onConfirm:()=>Promise<void>|void;onClose:()=>void}){
-  const [busy,setBusy]=useState(false),[error,setError]=useState("");
-  return <Modal title={title} onClose={()=>{if(!busy)onClose()}}><div className="confirm"><p>{copy}</p>{error&&<ErrorNote message={error}/>}<div className="form-actions"><button type="button" className="button ghost" disabled={busy} onClick={onClose}>Keep it</button><button type="button" className="button danger" disabled={busy} onClick={async()=>{setBusy(true);try{await onConfirm()}catch(e){setError((e as Error).message)}finally{setBusy(false)}}}><Trash2 size={16}/> Delete permanently</button></div></div></Modal>;
+  const mutation=useMutation();
+  return <Modal title={title} busy={mutation.busy} onClose={()=>{if(!mutation.isBusy())onClose()}}><div className="confirm"><p>{copy}</p>{mutation.error&&<ErrorNote message={mutation.error}/>}<div className="form-actions"><button type="button" className="button ghost" disabled={mutation.busy} onClick={onClose}>Keep it</button><button type="button" className="button danger" disabled={mutation.busy} onClick={()=>void mutation.run(async()=>{await onConfirm()},()=>{})}><Trash2 size={16}/> {mutation.busy?"Deleting…":"Delete permanently"}</button></div></div></Modal>;
 }
 
 export function FormActions({onCancel,busy,label="Save changes"}:{onCancel:()=>void;busy:boolean;label?:string}){return <div className="form-actions"><button type="button" className="button ghost" disabled={busy} onClick={onCancel}>Cancel</button><button className="button primary" disabled={busy}>{busy?<LoaderCircle className="spin" size={17}/>:<Check size={17}/>} {busy?"Saving…":label}</button></div>}
@@ -87,5 +88,3 @@ export function PhotoUpload({plantId,terrariumId,onDone,onBusyChange}:{plantId?:
     <button className="button primary field-wide" disabled={!file||mutation.busy}>{mutation.busy?<LoaderCircle className="spin"/>:<Plus/>} {mutation.busy?"Saving…":"Add to progress"}</button>
   </form>;
 }
-
-export function GlobalSearch({open,onClose,options}:{open:boolean;onClose:()=>void;options:AppOptions|null}){const [q,setQ]=useState("");const [results,setResults]=useState<GlobalSearchResult[]>([]);const input=useRef<HTMLInputElement>(null);const navigate=useNavigate();useEffect(()=>{if(open){setTimeout(()=>input.current?.focus(),10);setQ("");setResults([])}},[open]);useEffect(()=>{if(!q.trim()){setResults([]);return}const timer=setTimeout(()=>void api.get<GlobalSearchResult[]>(`/api/search?q=${encodeURIComponent(q)}`).then(setResults),180);return()=>clearTimeout(timer)},[q]);if(!open)return null;return <div className="search-overlay" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}><section className="command"><label><Search/><input ref={input} value={q} onChange={e=>setQ(e.target.value)} placeholder="Search plants, species, terrariums, and journal…"/><kbd>Esc</kbd></label>{q&&<div className="search-results">{results.length?results.map(result=><button key={`${result.type}-${result.id}`} onClick={()=>{navigate(result.url);onClose()}}><span className={`result-icon ${result.type}`}>{result.type[0].toUpperCase()}</span><span><strong>{result.title}</strong><small>{result.type} · {result.subtitle}</small></span></button>):<p>No matches in your greenhouse.</p>}</div>} {!q&&<div className="search-hints"><span className="eyebrow">Try searching</span><p>A plant name, scientific name, location, tag, terrarium, or words from your journal.</p><div><span>{options?.species.length||0} species</span><span>{options?.terrariums.length||0} terrariums</span><span>{options?.tags.length||0} tags</span></div></div>}</section></div>}
