@@ -5,7 +5,10 @@ import type { AppNotifications, AppOptions } from "./shared/types";
 import { useLoad, GlobalSearch, Loading, prettyStatus } from "./components/Common";
 import { Dashboard } from "./components/Dashboard";
 import { PlantsPage, PlantDetailPage } from "./components/Plants";
-import { SpeciesPage, TerrariumDetailPage, TerrariumsPage } from "./components/Library";
+import { PlantForm } from "./components/PlantForms";
+import { TerrariumForm } from "./components/TerrariumForm";
+import { TerrariumDetailPage, TerrariumsPage } from "./components/Terrariums";
+import { SpeciesPage } from "./components/Library";
 import { SettingsPage } from "./components/JournalSettings";
 const JournalWorkspace=lazy(()=>import("./journal/JournalWorkspace").then(module=>({default:module.JournalWorkspace})));
 
@@ -38,6 +41,11 @@ function Shell(){
   const {data:options,reload:reloadOptions}=useLoad<AppOptions>("/api/options");
   const {data:notifications,reload:reloadNotifications}=useLoad<AppNotifications>("/api/notifications",[location.key]);
   const [search,setSearch]=useState(false);
+  const [creatingPlant,setCreatingPlant]=useState(false);
+  const [creatingTerrarium,setCreatingTerrarium]=useState(false);
+  const gardenScroll=useRef(0);
+  const [welcomePlantId,setWelcomePlantId]=useState<string|null>(null);
+  const [welcomeTerrariumId,setWelcomeTerrariumId]=useState<string|null>(null);
   const [sidebarCollapsed,setSidebarCollapsed]=useState(()=>localStorage.getItem("greenhouse-sidebar-collapsed")==="true");
   useEffect(()=>{
     const key=(e:KeyboardEvent)=>{
@@ -49,7 +57,7 @@ function Shell(){
   },[]);
   useEffect(()=>localStorage.setItem("greenhouse-sidebar-collapsed",String(sidebarCollapsed)),[sidebarCollapsed]);
   const current=options||emptyOptions;
-  const refreshApp=()=>{void reloadOptions();void reloadNotifications()};
+  const refreshApp=()=>{void reloadOptions({background:true});void reloadNotifications({background:true})};
   const toggleLabel=sidebarCollapsed?"Expand sidebar":"Collapse sidebar";
   return <div className={`app-shell ${sidebarCollapsed?"sidebar-collapsed":""}`}>
     <aside className="sidebar">
@@ -62,11 +70,11 @@ function Shell(){
     <main>
       <header className="topbar"><button className="search-trigger" onClick={()=>setSearch(true)}><Search size={17}/><span>Search your greenhouse…</span><kbd>Ctrl K</kbd></button><AttentionNotifications data={notifications}/></header>
       <Suspense fallback={<Loading/>}><Routes>
-        <Route path="/" element={<Dashboard onAddPlant={()=>navigate("/plants")}/>}/>
-        <Route path="/plants" element={<PlantsPage options={current} refreshOptions={refreshApp}/>}/>
-        <Route path="/plants/:id" element={<PlantDetailPage options={current} refreshOptions={refreshApp}/>}/>
-        <Route path="/terrariums" element={<TerrariumsPage refreshOptions={refreshApp}/>}/>
-        <Route path="/terrariums/:id" element={<TerrariumDetailPage refreshOptions={refreshApp}/>}/>
+        <Route path="/" element={<Dashboard onAddPlant={()=>setCreatingPlant(true)} onAddTerrarium={()=>setCreatingTerrarium(true)} gardenScroll={gardenScroll.current} onGardenScroll={position=>{gardenScroll.current=position}}/>}/>
+        <Route path="/plants" element={<PlantsPage options={current} onAddPlant={()=>setCreatingPlant(true)}/>}/>
+        <Route path="/plants/:id" element={<PlantDetailPage options={current} refreshOptions={refreshApp} welcomePlantId={welcomePlantId} onWelcomeShown={()=>setWelcomePlantId(null)}/>}/>
+        <Route path="/terrariums" element={<TerrariumsPage onAddTerrarium={()=>setCreatingTerrarium(true)}/>}/>
+        <Route path="/terrariums/:id" element={<TerrariumDetailPage refreshOptions={refreshApp} welcomeTerrariumId={welcomeTerrariumId} onWelcomeShown={()=>setWelcomeTerrariumId(null)}/>}/>
         <Route path="/species" element={<SpeciesPage refreshOptions={refreshApp}/>}/>
         <Route path="/species/:id" element={<SpeciesPage refreshOptions={refreshApp}/>}/>
         <Route path="/journal" element={<JournalWorkspace options={current} refreshOptions={refreshApp}/>}/>
@@ -75,6 +83,8 @@ function Shell(){
         <Route path="*" element={<Navigate to="/" replace/>}/>
       </Routes></Suspense>
     </main>
+    <PlantForm open={creatingPlant} options={current} onClose={()=>setCreatingPlant(false)} onSaved={plant=>{setCreatingPlant(false);setWelcomePlantId(plant.id);refreshApp();navigate(`/plants/${plant.id}`)}}/>
+    <TerrariumForm open={creatingTerrarium} onClose={()=>setCreatingTerrarium(false)} onSaved={item=>{setCreatingTerrarium(false);setWelcomeTerrariumId(item.id);refreshApp();navigate(`/terrariums/${item.id}`)}}/>
     <GlobalSearch open={search} onClose={()=>setSearch(false)} options={options}/>
   </div>;
 }

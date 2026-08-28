@@ -8,8 +8,8 @@ import type { Photo } from "../src/shared/types";
 
 vi.mock("../src/api",()=>({api:{post:vi.fn()}}));
 let root:Root,host:HTMLDivElement;
-beforeEach(()=>{(globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;host=document.createElement("div");document.body.append(host);root=createRoot(host);vi.mocked(api.post).mockReset()});
-afterEach(async()=>{await act(async()=>root.unmount());host.remove()});
+beforeEach(()=>{vi.useFakeTimers();(globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;host=document.createElement("div");document.body.append(host);root=createRoot(host);vi.mocked(api.post).mockReset()});
+afterEach(async()=>{await act(async()=>root.unmount());host.remove();vi.useRealTimers()});
 const photo=(id:string):Photo=>({id,plantId:"fern",terrariumId:null,url:`/media/${id}.jpg`,originalName:`${id}.jpg`,mimeType:"image/jpeg",sizeBytes:100,dateTaken:"2026-08-27",caption:id,tags:[],createdAt:"2026-08-27T12:00:00Z"});
 const button=(label:string)=>host.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)!;
 
@@ -22,7 +22,9 @@ describe("cover photo controls",()=>{
     await act(async()=>button("Choose cover: Second").click());expect(button("Choose cover: Second").disabled).toBe(true);expect(host.textContent).toContain("Saving…");
     await act(async()=>reject(new Error("Could not save. Try again.")));expect(host.textContent).toContain("Could not save. Try again.");expect(onSaved).not.toHaveBeenCalled();
     vi.mocked(api.post).mockResolvedValueOnce({});await act(async()=>button("Choose cover: Second").click());
-    expect(api.post).toHaveBeenLastCalledWith("/api/plants/fern/profile-photo",{photoId:"Second"});expect(onSaved).toHaveBeenCalledOnce();expect(host.querySelector('[role="dialog"]')).toBeNull();
+    expect(api.post).toHaveBeenLastCalledWith("/api/plants/fern/profile-photo",{photoId:"Second"});expect(onSaved).toHaveBeenCalledOnce();
+    expect(host.querySelector('.modal-backdrop')?.classList.contains('is-exiting')).toBe(true);
+    await act(async()=>vi.advanceTimersByTime(120));expect(host.querySelector('[role="dialog"]')).toBeNull();
   });
   it("keeps the terrarium gallery action connected to the existing cover endpoint",async()=>{
     const onSaved=vi.fn();vi.mocked(api.post).mockResolvedValueOnce({});
