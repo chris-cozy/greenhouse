@@ -41,7 +41,7 @@ vi.mock("../src/components/Common", async importOriginal => ({
 
 describe("dashboard collection icons", () => {
   it("shows the requested home copy and puts reminders immediately after the collection",()=>{
-    dashboard.upcomingReminders=[{id:"care",plantId:"plant",plantName:"Fern",activityType:"watering",customLabel:"",guidance:"",cadenceDays:null,reminderEnabled:true,nextReminderDate:"2026-08-30",notes:"",sortOrder:0}];
+    dashboard.upcomingReminders=[{id:"care",plantId:"plant",plantName:"Fern",plantSpriteImage:PLANT_ICON_IMAGES[0],activityType:"watering",customLabel:"",guidance:"",cadenceDays:null,reminderEnabled:true,reminderRepeat:true,reminderCadenceDays:7,nextReminderDate:"2026-08-30",notes:"",sortOrder:0}];
     try {
       const html=renderToStaticMarkup(<MemoryRouter><Dashboard onAddPlant={()=>{}}/></MemoryRouter>);
       const document=new DOMParser().parseFromString(html,"text/html");
@@ -49,7 +49,16 @@ describe("dashboard collection icons", () => {
       expect(document.querySelector(".welcome p")?.textContent).toBe("All of the plants under your care");
       expect(document.querySelector(".garden-card h2")?.textContent).toBe("All of the sprites in your garden");
       expect(document.querySelector(".summary-grid")?.nextElementSibling?.className).toBe("reminder-strip");
+      expect(document.querySelector(".reminder-strip h2")?.textContent).toBe("A few things to check");
+      expect(document.querySelector(".reminder-done")?.textContent).toContain("Done for now");
+      expect(document.querySelector(".reminder-repeat")?.textContent).toBe("Repeats every 7 days");
+      expect(document.querySelector<HTMLAnchorElement>(".reminder-identity")?.href).toContain("/plants/plant?tab=care");
     } finally {dashboard.upcomingReminders=[];}
+  });
+  it("offers the complete reminder list when more than four are active",()=>{
+    dashboard.upcomingReminders=Array.from({length:5},(_,index)=>({id:`care-${index}`,plantId:`plant-${index}`,plantName:`Fern ${index}`,plantSpriteImage:PLANT_ICON_IMAGES[index%PLANT_ICON_IMAGES.length],activityType:"watering" as const,customLabel:"",guidance:"",cadenceDays:7,reminderEnabled:true,reminderRepeat:false,reminderCadenceDays:null,nextReminderDate:"2026-08-30",notes:"",sortOrder:index}));
+    try {const html=renderToStaticMarkup(<MemoryRouter><Dashboard onAddPlant={()=>{}}/></MemoryRouter>);const document=new DOMParser().parseFromString(html,"text/html");expect(document.querySelectorAll(".reminder-items .reminder-card")).toHaveLength(4);expect(document.querySelector(".reminder-view-all")?.textContent).toBe("View all 5")}
+    finally {dashboard.upcomingReminders=[]}
   });
   it("retains the same heading and separate onboarding for an empty greenhouse",()=>{
     const plants=dashboard.gardenPlants,terrariums=dashboard.gardenTerrariums;

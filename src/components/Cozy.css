@@ -93,9 +93,9 @@ button:disabled { transform: none; }
 .dashboard-page .plant-card .status { max-width: 100%; white-space: normal; }
 .dashboard-page .reminder-strip { grid-template-columns: minmax(180px,220px) minmax(0,1fr); padding: 20px; }
 .dashboard-page .reminder-items { min-width: 0; }
-.dashboard-page .reminder-items :is(span,small) { font-size: 12px; }
-.dashboard-page .reminder-items button { min-width: 44px; min-height: 44px; border-radius: 12px; }
-.dashboard-page .reminder-items article { min-width: 175px; }
+.dashboard-page .reminder-actions button { min-height: 36px; border-radius: 10px; }
+.dashboard-page .reminder-menu summary { min-width: 36px; min-height: 36px; }
+.dashboard-page .reminder-card { min-width: 0; }
 .dashboard-page .journal-entry { grid-template-columns: 60px minmax(0,1fr); }
 .dashboard-page .journal-entry h3, .dashboard-page .journal-entry p { overflow-wrap: anywhere; }
 .dashboard-page .getting-started { background: var(--panel); }

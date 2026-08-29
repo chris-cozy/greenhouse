@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Archive, ArrowLeft, CalendarDays, Camera, ChevronRight, CircleAlert, Droplets, Edit3, Flower2, History, Leaf, MapPin, Plus, Trash2 } from "lucide-react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api } from "../api";
 import type { AppOptions, CareItem, Plant } from "../shared/types";
 import { Confirm, EmptyState, ErrorNote, Loading, PageHeader, RefreshNote, Tags, prettyStatus, shortDate, useLoad } from "./Common";
@@ -52,8 +52,9 @@ export function PlantDetailPage(props: ProfileProps) {
 
 function PlantDetail({ id, options, refreshOptions, welcomePlantId, onWelcomeShown }: ProfileProps & { id: string }) {
   const navigate = useNavigate();
+  const [searchParams]=useSearchParams();
   const { data: plant, loading, error, reload, refreshing, refreshError } = useLoad<Plant>(`/api/plants/${id}`);
-  const [tab, setTab] = useState<ProfileTab>("story"), [hasTabbed, setHasTabbed] = useState(false);
+  const [tab, setTab] = useState<ProfileTab>(searchParams.get("tab")==="care"?"care":"story"), [hasTabbed, setHasTabbed] = useState(false);
   const [editing, setEditing] = useState(false), [history, setHistory] = useState(false), [confirm, setConfirm] = useState(false);
   const [care, setCare] = useState<{ item?: CareItem; version: number } | null>(null), [careOpen, setCareOpen] = useState(false);
   const [newMoment, setNewMoment] = useState<ProfileMoment | null>(null);
@@ -75,6 +76,9 @@ function PlantDetail({ id, options, refreshOptions, welcomePlantId, onWelcomeSho
     void reload({ background: true }); refreshOptions();
   };
   const openCare = (item?: CareItem) => { setCare(current => ({ item, version: (current?.version || 0) + 1 })); setCareOpen(true); };
+  const linkedCareId=searchParams.get("care");
+  const linkedCareOpened=useRef(false);
+  useEffect(()=>{if(!plant||!linkedCareId||linkedCareOpened.current)return;const item=plant.careItems?.find(careItem=>careItem.id===linkedCareId);if(item){linkedCareOpened.current=true;setTab("care");openCare(item)}},[plant,linkedCareId]);
   if (loading) return <div className="content plant-profile living-profile"><Loading/></div>;
   if (error || !plant) return <div className="content plant-profile living-profile"><ErrorNote message={error || "Plant not found."}/><button className="button ghost" onClick={() => void reload()}>Retry</button></div>;
   const place = plant.terrariumName || plant.location || "Location not set";
@@ -112,7 +116,15 @@ function PlantDetail({ id, options, refreshOptions, welcomePlantId, onWelcomeSho
           </article>)}</div> : <EmptyState icon={<Spirit id={plant.id} spriteImage={plant.spriteImage} size="empty"/>} title="Its story starts here" copy="Acquisition, photos, journal entries, and meaningful updates will gather into this timeline."/>}
         </div>{plant.status === "deceased" && <aside className="story-aside memorial-aside"><div className="memorial-card"><Leaf/><span className="eyebrow">Remembered</span><h3>{plant.dateOfDeath ? shortDate(plant.dateOfDeath) : "Date unknown"}</h3><p>{plant.causeOfDeath || "Cause not recorded"}</p><small>{plant.finalNotes}</small></div></aside>}</div></section>
         <section {...panel("care")}><div className="tab-toolbar"><p>Guidance lives here without asking you to log every watering.</p><button className="button primary" onClick={() => openCare()}><Plus/> Add guidance</button></div>
-          {plant.careItems?.length ? <div className="care-grid">{plant.careItems.map(item => <article className="care-card" key={item.id}><div className="care-icon">{item.activityType === "watering" || item.activityType === "misting" ? <Droplets/> : <Leaf/>}</div><div><span className="eyebrow">{item.customLabel || prettyStatus(item.activityType)}</span><h3>{item.guidance}</h3>{item.notes && <p>{item.notes}</p>}<footer>{item.cadenceDays && <span>About every {item.cadenceDays} days</span>}{item.reminderEnabled && <span className="reminder-pill"><CircleAlert/> Reminder {shortDate(item.nextReminderDate)}</span>}<button onClick={() => openCare(item)}>Edit</button></footer></div></article>)}</div> : <EmptyState icon={<Spirit id={plant.id} spriteImage={plant.spriteImage} size="empty"/>} title="Care that fits this plant" copy="Add general guidance such as “water when the top layer is dry.” Schedules are optional." action={<button className="button primary" onClick={() => openCare()}>Add guidance</button>}/>}
+          {plant.careItems?.length ? <div className="care-grid">{plant.careItems.map(item =>
+            <article className="care-card" key={item.id}>
+              <div className="care-icon">{item.activityType === "watering" || item.activityType === "misting" ? <Droplets/> : <Leaf/>}</div>
+              <div><span className="eyebrow">{item.customLabel || prettyStatus(item.activityType)}</span><h3>{item.guidance}</h3>{item.notes && <p>{item.notes}</p>}<footer>
+                {item.cadenceDays && <span>About every {item.cadenceDays} days</span>}
+                {item.reminderEnabled && <span className="reminder-pill"><CircleAlert/> {item.reminderRepeat&&item.reminderCadenceDays?`Reminder ${shortDate(item.nextReminderDate)} · every ${item.reminderCadenceDays} days`:`One-time reminder ${shortDate(item.nextReminderDate)}`}</span>}
+                <button onClick={() => openCare(item)}>Edit</button>
+              </footer></div>
+            </article>)}</div> : <EmptyState icon={<Spirit id={plant.id} spriteImage={plant.spriteImage} size="empty"/>} title="Care that fits this plant" copy="Add general guidance such as “water when the top layer is dry.” Schedules are optional." action={<button className="button primary" onClick={() => openCare()}>Add guidance</button>}/>}
         </section>
         <section {...panel("photos")}><ProfilePhotos kind="plant" id={plant.id} spriteImage={plant.spriteImage} photos={plant.photos || []} coverPhotoId={plant.profilePhotoId} onSaved={saved} newMoment={newMoment} onMomentShown={() => setNewMoment(null)}/></section>
         <section {...panel("about")}><div className="about-grid"><article className="fact-card"><span className="eyebrow">Current profile</span><dl>

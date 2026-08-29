@@ -4,7 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api } from "../src/api";
-import { PlantForm, HistoryForm } from "../src/components/PlantForms";
+import { CareForm, PlantForm, HistoryForm } from "../src/components/PlantForms";
 import { PlantDetailPage } from "../src/components/Plants";
 import { PhotoUpload } from "../src/components/Common";
 import { getPlantIcon } from "../src/shared/plantIcons";
@@ -76,6 +76,18 @@ describe("meaningful update saves",()=>{
     expect(input('Title').value).toBe('A new frond');expect(input('What happened?').value).toBe('Unfurled overnight');expect(saved).not.toHaveBeenCalled();
     vi.mocked(api.post).mockResolvedValueOnce({id:'event-new'});await submit();expect(saved).toHaveBeenCalledOnce();expect(saved).toHaveBeenCalledWith('event-new');
     expect(api.post).toHaveBeenLastCalledWith('/api/history',expect.objectContaining({plantId:'fern',eventType:'note',title:'A new frond',detail:'Unfurled overnight'}));
+  });
+});
+
+describe("care reminder scheduling",()=>{
+  it("separates general cadence from an explicit repeating reminder",async()=>{
+    vi.mocked(api.post).mockResolvedValue({});await mount(<CareForm open plantId="fern" onClose={()=>{}} onSaved={()=>{}}/>);
+    await fill("General guidance","Check the soil first");await fill("Typical cadence (days)","6");
+    await act(async()=>host.querySelector<HTMLInputElement>('.toggle input')!.click());
+    const schedule=Array.from(host.querySelectorAll('label')).find(label=>label.querySelector('span')?.textContent==="Reminder schedule")!.querySelector<HTMLSelectElement>('select')!;
+    await act(async()=>{Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value')!.set!.call(schedule,'repeating');schedule.dispatchEvent(new Event('change',{bubbles:true}))});
+    expect(input("Repeat every (days)").value).toBe("6");expect(input("First reminder").value).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    await submit();expect(api.post).toHaveBeenCalledWith('/api/plants/fern/care',expect.objectContaining({cadenceDays:6,reminderEnabled:true,reminderRepeat:true,reminderCadenceDays:6}));
   });
 });
 

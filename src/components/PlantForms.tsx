@@ -9,6 +9,8 @@ import { SpritePicker } from "./SpritePicker";
 export const plantStatuses: PlantStatus[] = ["healthy", "needs_attention", "recovering", "dormant", "deceased"];
 const careTypes = ["watering", "misting", "light", "humidity", "temperature", "fertilization", "pruning", "repotting", "custom"];
 const blankPlant = { name: "", spriteImage: "", speciesId: "", description: "", dateAcquired: "", source: "", location: "", terrariumId: "", status: "healthy", dateOfDeath: "", causeOfDeath: "", finalNotes: "", tags: [] as string[] };
+const dateInputKey=(date:Date)=>`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
+const suggestedReminderDate=(days:number)=>{const date=new Date();date.setHours(12,0,0,0);date.setDate(date.getDate()+days);return dateInputKey(date)};
 
 export function PlantForm({ plant, options, open = true, onClose, onSaved, onCoverSaved }: {
   plant?: Plant; options: AppOptions; open?: boolean; onClose: () => void; onSaved: (plant: Plant) => void; onCoverSaved?: () => void;
@@ -91,13 +93,15 @@ export function HistoryForm({ plantId, terrariumId, open, onClose, onSaved }: Hi
 }
 
 export function CareForm({ plantId, item, open, onClose, onSaved }: { plantId: string; item?: CareItem; open: boolean; onClose: () => void; onSaved: () => void }) {
-  const [value, setValue] = useState({ activityType: item?.activityType || "watering", customLabel: item?.customLabel || "", guidance: item?.guidance || "", cadenceDays: item?.cadenceDays?.toString() || "", reminderEnabled: item?.reminderEnabled || false, nextReminderDate: item?.nextReminderDate || "", notes: item?.notes || "" });
+  const [value, setValue] = useState({ activityType: item?.activityType || "watering", customLabel: item?.customLabel || "", guidance: item?.guidance || "", cadenceDays: item?.cadenceDays?.toString() || "", reminderEnabled: item?.reminderEnabled || false, reminderRepeat: item?.reminderRepeat || false, reminderCadenceDays: item?.reminderCadenceDays?.toString() || item?.cadenceDays?.toString() || "", nextReminderDate: item?.nextReminderDate || "", notes: item?.notes || "" });
   const mutation = useMutation();
   const set = (key: string, next: unknown) => setValue(current => ({ ...current, [key]: next }));
+  const setReminderEnabled=(enabled:boolean)=>setValue(current=>({...current,reminderEnabled:enabled,nextReminderDate:enabled?(current.nextReminderDate||suggestedReminderDate(Number(current.cadenceDays)||0)):current.nextReminderDate}));
+  const setReminderRepeat=(repeat:boolean)=>setValue(current=>({...current,reminderRepeat:repeat,reminderCadenceDays:repeat?(current.reminderCadenceDays||current.cadenceDays||"7"):current.reminderCadenceDays}));
   const close = () => { if (!mutation.isBusy()) onClose(); };
   return <Modal open={open} busy={mutation.busy} title={item ? "Edit care guidance" : "Add care guidance"} subtitle="A preference, not an obligation." onClose={close}>
     <form className="form-grid scroll-form" onSubmit={event => {
-      event.preventDefault(); const body = { ...value, cadenceDays: value.cadenceDays ? Number(value.cadenceDays) : null };
+      event.preventDefault(); const body = { ...value, cadenceDays: value.cadenceDays ? Number(value.cadenceDays) : null, reminderCadenceDays: value.reminderRepeat&&value.reminderCadenceDays ? Number(value.reminderCadenceDays) : null };
       void mutation.run(() => item ? api.put(`/api/plants/${plantId}/care/${item.id}`, body) : api.post(`/api/plants/${plantId}/care`, body), onSaved);
     }}>
       <fieldset className="form-fields" disabled={mutation.busy}>
@@ -106,8 +110,13 @@ export function CareForm({ plantId, item, open, onClose, onSaved }: { plantId: s
         <Field label="General guidance" wide><textarea required rows={3} value={value.guidance} onChange={e => set("guidance", e.target.value)} placeholder="Water when the top layer is dry…"/></Field>
         <Field label="Typical cadence (days)"><input type="number" min="1" value={value.cadenceDays} onChange={e => set("cadenceDays", e.target.value)} placeholder="Optional"/></Field>
         <Field label="Occasional notes"><input value={value.notes} onChange={e => set("notes", e.target.value)} placeholder="Seasonal adjustments…"/></Field>
-        <label className="toggle field-wide"><input type="checkbox" checked={value.reminderEnabled} onChange={e => set("reminderEnabled", e.target.checked)}/><span/><div><strong>Gentle in-app reminder</strong><small>Optional, and never creates a care log.</small></div></label>
-        {value.reminderEnabled && <Field label="Next reminder"><input type="date" required value={value.nextReminderDate} onChange={e => set("nextReminderDate", e.target.value)}/></Field>}
+        <label className="toggle field-wide"><input type="checkbox" checked={value.reminderEnabled} onChange={e => setReminderEnabled(e.target.checked)}/><span/><div><strong>Gentle in-app reminder</strong><small>Optional, and never creates a care log.</small></div></label>
+        {value.reminderEnabled && <div className="reminder-schedule field-wide">
+          <Field label="Reminder schedule"><select value={value.reminderRepeat?"repeating":"one-time"} onChange={e=>setReminderRepeat(e.target.value==="repeating")}><option value="one-time">One time</option><option value="repeating">Repeating</option></select></Field>
+          <Field label="First reminder" hint={value.reminderRepeat?"Future reminders use the interval beside it.":undefined}><input type="date" required value={value.nextReminderDate} onChange={e => set("nextReminderDate", e.target.value)}/></Field>
+          {value.reminderRepeat&&<Field label="Repeat every (days)"><input type="number" min="1" required value={value.reminderCadenceDays} onChange={e=>set("reminderCadenceDays",e.target.value)}/></Field>}
+          <p className="reminder-schedule-note">{value.reminderRepeat?`Done for now will schedule the next reminder ${value.reminderCadenceDays||"—"} days later.`:"Done for now will complete and turn off this one-time reminder."}</p>
+        </div>}
       </fieldset>
       {mutation.error && <div className="field-wide"><ErrorNote message={mutation.error}/></div>}
       <div className="field-wide"><FormActions onCancel={close} busy={mutation.busy}/></div>

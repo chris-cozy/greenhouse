@@ -12,6 +12,9 @@ const iso=()=>new Date().toISOString();
 const text=(value:unknown)=>typeof value==="string"?value.trim():"";
 const nullable=(value:unknown)=>text(value)||null;
 const bool=(value:unknown)=>value?1:0;
+const positive=(value:unknown)=>Number(value)>0?Math.floor(Number(value)):null;
+const dateKey=(date=new Date())=>`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
+const addDateDays=(start:string,days:number)=>{const date=new Date(`${start}T12:00:00`);date.setDate(date.getDate()+days);return dateKey(date)};
 
 export class GreenhouseStore {
   private db:Database.Database;
@@ -48,7 +51,7 @@ export class GreenhouseStore {
       );
       CREATE TABLE IF NOT EXISTS care_items(
         id TEXT PRIMARY KEY, plant_id TEXT NOT NULL REFERENCES plants(id) ON DELETE CASCADE, activity_type TEXT NOT NULL, custom_label TEXT NOT NULL DEFAULT '', guidance TEXT NOT NULL DEFAULT '',
-        cadence_days INTEGER, reminder_enabled INTEGER NOT NULL DEFAULT 0, next_reminder_date TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', sort_order INTEGER NOT NULL DEFAULT 0
+        cadence_days INTEGER, reminder_enabled INTEGER NOT NULL DEFAULT 0, reminder_repeat INTEGER NOT NULL DEFAULT 0, reminder_cadence_days INTEGER, next_reminder_date TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', sort_order INTEGER NOT NULL DEFAULT 0
       );
       CREATE TABLE IF NOT EXISTS species_care_items(id TEXT PRIMARY KEY, species_id TEXT NOT NULL REFERENCES species(id) ON DELETE CASCADE, activity_type TEXT NOT NULL, guidance TEXT NOT NULL DEFAULT '', sort_order INTEGER NOT NULL DEFAULT 0);
       CREATE TABLE IF NOT EXISTS photos(
@@ -90,6 +93,12 @@ export class GreenhouseStore {
     });
     assignSprites();
     db.prepare("INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(4,?)").run(iso());
+    const careColumns=(db.prepare("PRAGMA table_info(care_items)").all() as Row[]).map(column=>column.name);
+    const legacyReminders=!careColumns.includes("reminder_repeat")||!careColumns.includes("reminder_cadence_days");
+    if(!careColumns.includes("reminder_repeat"))db.exec("ALTER TABLE care_items ADD COLUMN reminder_repeat INTEGER NOT NULL DEFAULT 0");
+    if(!careColumns.includes("reminder_cadence_days"))db.exec("ALTER TABLE care_items ADD COLUMN reminder_cadence_days INTEGER");
+    if(legacyReminders)db.exec("UPDATE care_items SET reminder_repeat=CASE WHEN reminder_enabled=1 AND cadence_days IS NOT NULL THEN 1 ELSE 0 END,reminder_cadence_days=CASE WHEN reminder_enabled=1 THEN cadence_days ELSE NULL END");
+    db.prepare("INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(5,?)").run(iso());
     db.pragma("optimize");
   }
   close(){this.db.close()}
@@ -141,10 +150,28 @@ export class GreenhouseStore {
   deleteTerrarium(id:string){const plants=this.db.prepare("SELECT id FROM plants WHERE terrarium_id=?").all(id) as Row[];const tx=this.db.transaction(()=>{for(const plant of plants)this.addEvent(plant.id,null,"terrarium_removed",iso().slice(0,10),"Removed from terrarium","The terrarium was deleted.");this.db.prepare("UPDATE plants SET terrarium_id=NULL,updated_at=? WHERE terrarium_id=?").run(iso(),id);this.db.prepare("DELETE FROM terrariums WHERE id=?").run(id)});tx()}
   setCoverPhoto(terrariumId:string,photoId:string|null){if(!this.getTerrarium(terrariumId))throw new Error("Terrarium not found.");if(photoId){const photo=this.db.prepare("SELECT id FROM photos WHERE id=? AND terrarium_id=?").get(photoId,terrariumId);if(!photo)throw new Error("Photo does not belong to this terrarium.")}this.db.prepare("UPDATE terrariums SET cover_photo_id=?,updated_at=? WHERE id=?").run(photoId,iso(),terrariumId);return this.getTerrarium(terrariumId)}
 
-  listCare(plantId:string){return (this.db.prepare("SELECT * FROM care_items WHERE plant_id=? ORDER BY sort_order,id").all(plantId) as Row[]).map(r=>({id:r.id,plantId:r.plant_id,activityType:r.activity_type as CareActivityType,customLabel:r.custom_label,guidance:r.guidance,cadenceDays:r.cadence_days,reminderEnabled:Boolean(r.reminder_enabled),nextReminderDate:r.next_reminder_date,notes:r.notes,sortOrder:r.sort_order}))}
-  saveCare(plantId:string,input:Row,id=randomUUID()){const exists=this.db.prepare("SELECT id FROM plants WHERE id=?").get(plantId);if(!exists)throw new Error("Plant not found.");this.db.prepare(`INSERT INTO care_items(id,plant_id,activity_type,custom_label,guidance,cadence_days,reminder_enabled,next_reminder_date,notes,sort_order) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET activity_type=excluded.activity_type,custom_label=excluded.custom_label,guidance=excluded.guidance,cadence_days=excluded.cadence_days,reminder_enabled=excluded.reminder_enabled,next_reminder_date=excluded.next_reminder_date,notes=excluded.notes,sort_order=excluded.sort_order`).run(id,plantId,text(input.activityType)||"custom",text(input.customLabel),text(input.guidance),Number(input.cadenceDays)>0?Number(input.cadenceDays):null,bool(input.reminderEnabled),text(input.nextReminderDate),text(input.notes),Number(input.sortOrder)||0);return this.listCare(plantId).find(x=>x.id===id)!}
+  listCare(plantId:string){return (this.db.prepare("SELECT * FROM care_items WHERE plant_id=? ORDER BY sort_order,id").all(plantId) as Row[]).map(r=>({id:r.id,plantId:r.plant_id,activityType:r.activity_type as CareActivityType,customLabel:r.custom_label,guidance:r.guidance,cadenceDays:r.cadence_days,reminderEnabled:Boolean(r.reminder_enabled),reminderRepeat:Boolean(r.reminder_repeat),reminderCadenceDays:r.reminder_cadence_days,nextReminderDate:r.next_reminder_date,notes:r.notes,sortOrder:r.sort_order}))}
+  saveCare(plantId:string,input:Row,id=randomUUID()){
+    const exists=this.db.prepare("SELECT id FROM plants WHERE id=?").get(plantId);if(!exists)throw new Error("Plant not found.");
+    const reminderEnabled=Boolean(input.reminderEnabled),legacyRepeat=input.reminderRepeat===undefined&&reminderEnabled&&Boolean(positive(input.cadenceDays));
+    const reminderRepeat=input.reminderRepeat===undefined?legacyRepeat:Boolean(input.reminderRepeat),reminderCadenceDays=positive(input.reminderCadenceDays)||(legacyRepeat?positive(input.cadenceDays):null),nextReminderDate=reminderEnabled?text(input.nextReminderDate):"";
+    if(reminderEnabled&&!/^\d{4}-\d{2}-\d{2}$/.test(nextReminderDate))throw new Error("Choose a first reminder date.");
+    if(reminderEnabled&&reminderRepeat&&!reminderCadenceDays)throw new Error("Choose how many days should pass between reminders.");
+    this.db.prepare(`INSERT INTO care_items(id,plant_id,activity_type,custom_label,guidance,cadence_days,reminder_enabled,reminder_repeat,reminder_cadence_days,next_reminder_date,notes,sort_order) VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET activity_type=excluded.activity_type,custom_label=excluded.custom_label,guidance=excluded.guidance,cadence_days=excluded.cadence_days,reminder_enabled=excluded.reminder_enabled,reminder_repeat=excluded.reminder_repeat,reminder_cadence_days=excluded.reminder_cadence_days,next_reminder_date=excluded.next_reminder_date,notes=excluded.notes,sort_order=excluded.sort_order`).run(id,plantId,text(input.activityType)||"custom",text(input.customLabel),text(input.guidance),positive(input.cadenceDays),bool(reminderEnabled),bool(reminderRepeat),reminderCadenceDays,nextReminderDate,text(input.notes),Number(input.sortOrder)||0);
+    return this.listCare(plantId).find(x=>x.id===id)!;
+  }
   deleteCare(id:string){this.db.prepare("DELETE FROM care_items WHERE id=?").run(id)}
-  dismissReminder(id:string){const item=this.db.prepare("SELECT cadence_days FROM care_items WHERE id=?").get(id) as Row|undefined;if(!item)throw new Error("Reminder not found.");let next="";if(item.cadence_days){const d=new Date();d.setDate(d.getDate()+Number(item.cadence_days));next=d.toISOString().slice(0,10)}this.db.prepare("UPDATE care_items SET next_reminder_date=? WHERE id=?").run(next,id)}
+  private reminder(id:string){const item=this.db.prepare("SELECT * FROM care_items WHERE id=?").get(id) as Row|undefined;if(!item)throw new Error("Reminder not found.");return item}
+  completeReminder(id:string,today=dateKey()){
+    const item=this.reminder(id),previous={reminderEnabled:Boolean(item.reminder_enabled),nextReminderDate:String(item.next_reminder_date||"")};
+    const repeats=Boolean(item.reminder_repeat)&&positive(item.reminder_cadence_days);const next=repeats?addDateDays(today,Number(item.reminder_cadence_days)):"";
+    this.db.prepare("UPDATE care_items SET reminder_enabled=?,next_reminder_date=? WHERE id=?").run(repeats?1:0,next,id);
+    return {reminder:this.listCare(String(item.plant_id)).find(care=>care.id===id)!,previous};
+  }
+  restoreReminder(id:string,input:Row){const item=this.reminder(id);const enabled=Boolean(input.reminderEnabled),next=enabled?text(input.nextReminderDate):"";if(enabled&&!/^\d{4}-\d{2}-\d{2}$/.test(next))throw new Error("The previous reminder date is unavailable.");this.db.prepare("UPDATE care_items SET reminder_enabled=?,next_reminder_date=? WHERE id=?").run(bool(enabled),next,id);return this.listCare(String(item.plant_id)).find(care=>care.id===id)!}
+  snoozeReminder(id:string,days:number,today=dateKey()){const item=this.reminder(id),delay=positive(days);if(!delay||delay>365)throw new Error("Choose a snooze between 1 and 365 days.");this.db.prepare("UPDATE care_items SET reminder_enabled=1,next_reminder_date=? WHERE id=?").run(addDateDays(today,delay),id);return this.listCare(String(item.plant_id)).find(care=>care.id===id)!}
+  disableReminder(id:string){const item=this.reminder(id);this.db.prepare("UPDATE care_items SET reminder_enabled=0,next_reminder_date='' WHERE id=?").run(id);return this.listCare(String(item.plant_id)).find(care=>care.id===id)!}
+  dismissReminder(id:string){return this.completeReminder(id)}
 
   addEvent(plantId:string|null,terrariumId:string|null,eventType:HistoryEventType,eventDate:string,title:string,detail:string){const id=randomUUID();this.db.prepare("INSERT INTO history_events(id,plant_id,terrarium_id,event_type,event_date,title,detail,created_at) VALUES(?,?,?,?,?,?,?,?)").run(id,plantId,terrariumId,eventType,eventDate||iso().slice(0,10),title,detail,iso());return id}
   saveEvent(input:Row){if(!text(input.title))throw new Error("Update title is required.");const id=this.addEvent(nullable(input.plantId),nullable(input.terrariumId),(text(input.eventType)||"note") as HistoryEventType,text(input.eventDate)||iso().slice(0,10),text(input.title),text(input.detail));return {id}}
@@ -173,7 +200,7 @@ export class GreenhouseStore {
     const livingPlants=gardenPlants.length;
     const terrariums=gardenTerrariums.length;
     const photos=(this.db.prepare("SELECT * FROM photos ORDER BY COALESCE(NULLIF(date_taken,''),created_at) DESC LIMIT 8").all() as Row[]).map(r=>this.rowPhoto(r));
-    const reminders=(this.db.prepare(`SELECT c.*,p.name plant_name FROM care_items c JOIN plants p ON p.id=c.plant_id WHERE c.reminder_enabled=1 AND c.next_reminder_date!='' AND p.archived_at IS NULL AND p.status!='deceased' ORDER BY c.next_reminder_date LIMIT 8`).all() as Row[]).map(r=>({...this.listCare(r.plant_id).find(x=>x.id===r.id)!,plantName:r.plant_name}));
+    const reminders=(this.db.prepare(`SELECT c.*,p.name plant_name,p.sprite_image plant_sprite_image FROM care_items c JOIN plants p ON p.id=c.plant_id WHERE c.reminder_enabled=1 AND c.next_reminder_date!='' AND p.archived_at IS NULL AND p.status!='deceased' ORDER BY c.next_reminder_date,c.sort_order,c.id`).all() as Row[]).map(r=>({...this.listCare(r.plant_id).find(x=>x.id===r.id)!,plantName:r.plant_name,plantSpriteImage:getPlantIcon(String(r.plant_id),r.plant_sprite_image)}));
     return {livingPlants,terrariums,gardenPlants,gardenTerrariums,attentionPlants:this.listPlants({scope:"all"}).filter(p=>!p.archivedAt&&(p.status==="needs_attention"||p.status==="recovering")).slice(0,6),recentlyUpdated:this.listPlants({scope:"living"}).slice(0,6),recentJournals:this.listJournal().slice(0,5),recentPhotos:photos,upcomingReminders:reminders};
   }
   notifications():AppNotifications{

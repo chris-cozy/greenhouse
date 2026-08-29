@@ -136,6 +136,19 @@
 .save-feedback-message.is-exiting { animation:feedback-exit 120ms ease both; pointer-events:none; }
 .loading,.error-note,.success-note,.refresh-note,.refresh-progress { animation:quiet-reveal var(--motion-base) var(--ease-gentle) both; }
 .new-moment { animation:moment-enter var(--motion-slow) var(--ease-spring) both; }
+.reminder-card {
+  transition:opacity var(--motion-base) var(--ease-gentle),transform var(--motion-base) var(--ease-spring),background-color var(--motion-base) ease,border-color var(--motion-base) ease;
+}
+.reminder-card :is(.reminder-identity,.reminder-due,.reminder-repeat) {
+  transition:opacity var(--motion-fast) ease,transform var(--motion-base) var(--ease-gentle);
+}
+.reminder-card.is-completing { pointer-events:none; border-color:#718b70; background:#213326; }
+.reminder-card.is-completing :is(.reminder-identity,.reminder-due,.reminder-repeat) { opacity:.38; transform:translateY(-2px); }
+.reminder-card.is-completing .reminder-done { background:#dce8d7; color:#17251b; }
+.reminder-card.is-completing .reminder-done svg { animation:feedback-check var(--motion-slow) var(--ease-spring) both; }
+.reminder-items.is-settling,.reminder-all-list.is-settling { animation:reminder-list-settle var(--motion-slow) var(--ease-spring) both; }
+::view-transition-group(*) { animation-duration:var(--motion-slow); animation-timing-function:var(--ease-spring); }
+::view-transition-old(*),::view-transition-new(*) { animation-duration:var(--motion-base); animation-timing-function:var(--ease-gentle); }
 
 :root[data-forest-aesthetic="true"] body::before {
   transform-origin:center 42%;
@@ -203,6 +216,10 @@
   from { opacity:0; transform:translateY(7px) scale(.995); }
   to { opacity:1; transform:none; }
 }
+@keyframes reminder-list-settle {
+  from { opacity:.45; transform:translateY(5px); }
+  to { opacity:1; transform:none; }
+}
 
 @media (prefers-reduced-motion:reduce) {
   *,*::before,*::after {
@@ -225,4 +242,5 @@
   .profile-identity:hover .spirit,.plant-card:hover .story-card-spirit .spirit,.plant-card:focus-visible .story-card-spirit .spirit,
   .plant-card:active .story-card-spirit .spirit,.photo-grid figure:hover img,.recent-photos img:hover { transform:none !important; }
   .appearance-switch[aria-checked=true] > span:first-child { transform:translateX(20px) !important; }
+  ::view-transition-group(*),::view-transition-old(*),::view-transition-new(*) { animation:none !important; }
 }

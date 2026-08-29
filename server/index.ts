@@ -73,6 +73,10 @@ app.post("/api/plants/:plantId/care",(req,res)=>res.status(201).json(store.saveC
 app.put("/api/plants/:plantId/care/:id",(req,res)=>res.json(store.saveCare(req.params.plantId,req.body,req.params.id as any)));
 app.delete("/api/care/:id",(req,res)=>{store.deleteCare(req.params.id);res.status(204).end()});
 app.post("/api/care/:id/dismiss",(req,res)=>{store.dismissReminder(req.params.id);res.status(204).end()});
+app.post("/api/care/:id/reminder/complete",(req,res)=>res.json(store.completeReminder(req.params.id)));
+app.post("/api/care/:id/reminder/restore",(req,res)=>res.json(store.restoreReminder(req.params.id,req.body)));
+app.post("/api/care/:id/reminder/snooze",(req,res)=>res.json(store.snoozeReminder(req.params.id,Number(req.body.days))));
+app.post("/api/care/:id/reminder/disable",(req,res)=>res.json(store.disableReminder(req.params.id)));
 app.post("/api/history",(req,res)=>res.status(201).json(store.saveEvent(req.body)));
 
 app.get("/api/journal",(req,res)=>res.json(store.listJournal(req.query)));
