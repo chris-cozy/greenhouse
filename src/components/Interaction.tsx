@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type RefObject } from "react";
 import { Check } from "lucide-react";
 
 const overlays = new Set<symbol>();
@@ -43,6 +43,22 @@ export function useReducedMotion() {
     return () => query.removeEventListener("change", change);
   }, []);
   return reduced;
+}
+
+/** Animate committed route content without keying or remounting the routed subtree. */
+export function useRouteMotion<T extends HTMLElement>(target: RefObject<T | null>, routeKey: string) {
+  const reduced = useReducedMotion();
+  const current = useRef<Animation | null>(null);
+  useLayoutEffect(() => {
+    current.current?.cancel();
+    const element = target.current;
+    if (reduced || !element || typeof element.animate !== "function") return;
+    current.current = element.animate([
+      { opacity: .62, transform: "translateY(7px)" },
+      { opacity: 1, transform: "translateY(0)" },
+    ], { duration: 220, easing: "cubic-bezier(.22,.61,.36,1)" });
+    return () => { current.current?.cancel(); current.current = null; };
+  }, [routeKey, reduced, target]);
 }
 
 export function usePresence(open: boolean) {
@@ -96,7 +112,11 @@ export function useFeedback() {
 }
 
 export function SaveFeedback({ message, sequence = 0 }: { message?: string; sequence?: number }) {
-  return <div className={`save-feedback ${message ? "has-message" : ""}`} role="status" aria-live="polite" aria-atomic="true">
-    {message && <span key={sequence} className="save-feedback-message"><Check size={16} aria-hidden="true"/><span>{message}</span></span>}
+  const { present, exiting } = usePresence(!!message);
+  const retained = useRef<{ message: string; sequence: number } | null>(null);
+  if (message) retained.current = { message, sequence };
+  const shown = message ? { message, sequence } : retained.current;
+  return <div className={`save-feedback ${present ? "has-message" : ""}`} role="status" aria-live="polite" aria-atomic="true">
+    {present && shown && <span key={shown.sequence} className={`save-feedback-message ${exiting ? "is-exiting" : ""}`}><Check size={16} aria-hidden="true"/><span>{shown.message}</span></span>}
   </div>;
 }

@@ -8,6 +8,7 @@ import "./components/Dashboard.css";
 import "./components/Cozy.css";
 import "./components/Workspace.css";
 import "./forest.css";
+import "./motion.css";
 const stopAppearance = initializeAppearance();
 if (import.meta.hot) import.meta.hot.dispose(stopAppearance);
 createRoot(document.getElementById("root")!).render(<StrictMode><App /></StrictMode>);

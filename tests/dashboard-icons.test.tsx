@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Modal } from "../src/components/Common";
 import type { GardenViewState } from "../src/components/Garden";
 import { Dashboard, Garden } from "../src/components/Dashboard";
+import { Spirit } from "../src/components/Spirit";
 import { getPlantIcon, PLANT_ICON_IMAGES } from "../src/shared/plantIcons";
 import type { DashboardData } from "../src/shared/types";
 import { initializeAppearance, setForestAesthetic } from "../src/appearance";
@@ -88,6 +89,14 @@ describe("dashboard collection icons", () => {
     expect(image.readUInt32BE(16)).toBeGreaterThan(0);
     expect(image.readUInt32BE(20)).toBeGreaterThan(0);
     expect(image[25]).toBe(6);
+  });
+  it("gives companion motion a stable pose and timing profile without changing its artwork",()=>{
+    const html=renderToStaticMarkup(<><Spirit id="fern" motion="idle"/><Spirit id="fern" motion="idle"/><Spirit id="cloud" kind="terrarium" motion="idle"/></>);
+    const document=new DOMParser().parseFromString(html,"text/html"),spirits=Array.from(document.querySelectorAll<HTMLElement>('.spirit'));
+    expect(spirits[0].dataset.pose).toMatch(/standing|seated|resting/);expect(spirits[0].dataset.motionProfile).toBe(spirits[1].dataset.motionProfile);
+    expect(spirits[0].dataset.motionProfile).toBe(({standing:'sway',seated:'nod',resting:'breathe'} as const)[spirits[0].dataset.pose as 'standing'|'seated'|'resting']);
+    expect(spirits[0].getAttribute('style')).toBe(spirits[1].getAttribute('style'));expect(spirits[0].querySelector('img')?.getAttribute('src')).toBe(getPlantIcon('fern'));
+    expect(spirits[2].dataset.pose).toBe('terrarium');expect(spirits[2].dataset.motionProfile).toBe('terrarium');expect(spirits[2].classList).toContain('spirit-motion-idle');
   });
 });
 
@@ -224,9 +233,17 @@ describe("endless garden carousel",()=>{
     await act(async()=>{pause.dispatchEvent(pointer('pointerdown',0));pause.focus();pause.dispatchEvent(pointer('pointerup',0));pause.click()});expect(gardenButton('Play')).toBe(pause);
     await act(async()=>{pause.dispatchEvent(pointer('pointerdown',0));pause.click()});expect(gardenButton('Pause')).toBe(pause);expect(document.activeElement).toBe(pause);
   });
+  it("runs only canonical sprite idles and pauses them with the garden control",async()=>{
+    await showGarden(7);const card=interactiveHost!.querySelector('.garden-card')!;
+    expect(card.getAttribute('data-motion')).toBe('running');
+    expect(interactiveHost!.querySelectorAll('li[data-copy="0"] .spirit-motion-idle')).toHaveLength(7);
+    expect(interactiveHost!.querySelectorAll('li:not([data-copy="0"]) .spirit-motion-idle')).toHaveLength(0);
+    await click('Pause');expect(card.getAttribute('data-motion')).toBe('paused');
+    await click('Play');expect(card.getAttribute('data-motion')).toBe('running');
+  });
   it("disables autoplay under reduced motion but retains immediate manual wrapping",async()=>{
     vi.stubGlobal('matchMedia',vi.fn(()=>({matches:true,addEventListener:vi.fn(),removeEventListener:vi.fn()})));
-    await showGarden(7);const start=track().scrollLeft;await advance(5000);expect(track().scrollLeft).toBe(start);expect(gardenButton('Motion off').disabled).toBe(true);
+    await showGarden(7);const start=track().scrollLeft;await advance(5000);expect(track().scrollLeft).toBe(start);expect(gardenButton('Motion off').disabled).toBe(true);expect(interactiveHost!.querySelector('.garden-card')?.getAttribute('data-motion')).toBe('paused');
     await click('Scroll garden left');expect(track().scrollLeft).toBe(7*136+6*136);
   });
 });

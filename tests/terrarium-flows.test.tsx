@@ -73,34 +73,40 @@ describe("terrarium updates and profiles",()=>{
     const payload=vi.mocked(api.post).mock.calls[0][1];expect(payload).toEqual(expect.objectContaining({terrariumId:'cloud',eventType:'note',title:'New moss',detail:'Fresh shoots by the glass'}));expect(payload).not.toHaveProperty('plantId');expect(saved).toHaveBeenCalledWith('new-moment');
   });
   it("preserves photography, journal links, resident identities, and all habitat notes",async()=>{
-    await profile();expect(host.querySelector('.detail-hero')?.getAttribute('style')).toContain('/media/first.jpg');expect(host.querySelector('.spirit-profile img')?.getAttribute('src')).toBe('/images/plant-spirit-terrarium.png');
+    await profile();const metadata=host.querySelector('.hero-meta')?.textContent;
+    expect(host.querySelector('.terrarium-summary-shell > .terrarium-summary-card.detail-hero')?.getAttribute('style')).toContain('/media/first.jpg');expect(host.querySelector('.spirit-profile img')?.getAttribute('src')).toBe('/images/plant-spirit-terrarium.png');
+    expect(host.querySelector('.profile-identity .spirit-motion-idle.spirit-profile-terrarium')).not.toBeNull();expect(metadata).toContain('North shelf');expect(metadata).toContain('Created Feb 3, 2024');expect(metadata).toContain('1 living plant');expect(metadata).toContain('2 photos');
+    expect(host.querySelector('.profile-summary-toolbar .profile-summary-edit')?.textContent).toContain('Edit');expect(host.querySelector('.profile-action-bar')).toBeNull();
+    expect(host.querySelector('#terrarium-panel-story .section-heading .button.primary')?.textContent).toContain('Add update');expect(host.querySelector('.detail-hero')?.textContent).not.toContain('Add update');
+    expect(host.querySelector('.terrarium-record [role="tablist"]')).not.toBeNull();expect(host.querySelector('.story-aside .fact-card')).toBeNull();expect(host.textContent).not.toContain('At a glance');
     expect(host.querySelector('.timeline a')?.getAttribute('href')).toBe('/journal/journal-one');expect(host.querySelector('.resident-list .spirit img')?.getAttribute('src')).toBe(getPlantIcon('fern'));
     expect(host.querySelector('.resident-thumb')?.getAttribute('style')).toContain('/media/leaf.jpg');
     await act(async()=>button('Environment').click());expect(host.querySelector('#terrarium-panel-environment')?.textContent).toContain('Gravel, charcoal, soil');expect(host.querySelector('#terrarium-panel-environment')?.textContent).toContain('Springtails');
-    expect(host.querySelector('.spirit-settling')).toBeNull();expect(host.querySelector('.save-feedback')?.textContent).toBe('');
+    expect(host.querySelector('.spirit-motion-settle')).toBeNull();expect(host.querySelector('.save-feedback')?.textContent).toBe('');
   });
   it("welcomes a new terrarium exactly once under Strict Mode",async()=>{
     vi.useFakeTimers();const consumed=vi.fn();await profile('cloud',consumed);
-    expect(consumed).toHaveBeenCalledOnce();expect(host.querySelector('.save-feedback')?.textContent).toContain('Welcome to the greenhouse, Cloud Forest.');expect(host.querySelector('.spirit-settling')).not.toBeNull();
-    await act(async()=>vi.advanceTimersByTime(360));expect(host.querySelector('.spirit-settling')).toBeNull();await act(async()=>button('Residents').click());expect(consumed).toHaveBeenCalledOnce();
+    expect(consumed).toHaveBeenCalledOnce();expect(host.querySelector('.save-feedback')?.textContent).toContain('Welcome to the greenhouse, Cloud Forest.');expect(host.querySelector('.spirit-motion-settle')).not.toBeNull();
+    await act(async()=>vi.advanceTimersByTime(360));expect(host.querySelector('.spirit-motion-settle')).toBeNull();expect(host.querySelector('.profile-identity .spirit-motion-idle')).not.toBeNull();await act(async()=>button('Residents').click());expect(consumed).toHaveBeenCalledOnce();
   });
   it("keeps the active photo tab and comparison mounted when refresh fails after a successful write",async()=>{
     vi.useFakeTimers();await profile();await act(async()=>button('Habitat photos').click());await act(async()=>button('Compare photos').click());const comparison=host.querySelector('.compare-panel');
-    await act(async()=>button('Choose cover photo').click());vi.mocked(api.post).mockResolvedValueOnce({...terrarium,coverPhotoId:'second'});vi.mocked(api.get).mockRejectedValueOnce(new Error('Refresh unavailable'));
+    expect(button('Choose cover photo')).toBeUndefined();await act(async()=>button('Edit').click());expect(host.querySelector('.edit-cover-field')?.textContent).toContain('Cover photo');
+    vi.mocked(api.post).mockResolvedValueOnce({...terrarium,coverPhotoId:'second'});vi.mocked(api.get).mockRejectedValueOnce(new Error('Refresh unavailable'));
     await act(async()=>host.querySelector<HTMLButtonElement>('[aria-label="Choose cover: second"]')!.click());
-    expect(api.post).toHaveBeenCalledWith('/api/terrariums/cloud/cover-photo',{photoId:'second'});expect(host.querySelector('.save-feedback')?.textContent).toContain('Cover photo updated');expect(host.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe('Habitat photos');expect(host.querySelector('.compare-panel')).toBe(comparison);expect(host.querySelector('.refresh-note')?.textContent).toContain('Refresh unavailable');
+    expect(api.post).toHaveBeenCalledWith('/api/terrariums/cloud/cover-photo',{photoId:'second'});expect(api.put).not.toHaveBeenCalled();expect(host.querySelector('.save-feedback')?.textContent).toContain('Cover photo updated');expect(host.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe('Habitat photos');expect(host.querySelector('.compare-panel')).toBe(comparison);expect(host.querySelector('.refresh-note')?.textContent).toContain('Refresh unavailable');
     await act(async()=>vi.advanceTimersByTime(120));vi.mocked(api.get).mockResolvedValueOnce({...terrarium,coverPhotoId:'second',coverPhotoUrl:'/media/second.jpg'});await act(async()=>button('Retry refresh').click());
     expect(api.post).toHaveBeenCalledOnce();expect(host.querySelector('.refresh-note')).toBeNull();expect(host.querySelector('.compare-panel')).toBe(comparison);
   });
   it("announces and animates a new update only after success, then refreshes without losing the active tab",async()=>{
     vi.useFakeTimers();await profile();await act(async()=>button('Add update').click());await fill('Title','New shoots');vi.mocked(api.post).mockRejectedValueOnce(new Error('Offline'));await submit();
-    expect(host.querySelector('.spirit-settling')).toBeNull();expect(host.querySelector('.save-feedback')?.textContent).toBe('');expect(input('Title').value).toBe('New shoots');
+    expect(host.querySelector('.spirit-motion-settle')).toBeNull();expect(host.querySelector('.save-feedback')?.textContent).toBe('');expect(input('Title').value).toBe('New shoots');
     vi.mocked(api.post).mockResolvedValueOnce({id:'new-event'});vi.mocked(api.get).mockResolvedValueOnce({...terrarium,history:[{id:'new-event',kind:'event',title:'New shoots',detail:'',date:'2026-08-28'},...terrarium.history!]});await submit();
-    expect(host.querySelector('.save-feedback')?.textContent).toContain('A new moment added');expect(host.querySelectorAll('.timeline .new-moment')).toHaveLength(1);expect(host.querySelectorAll('.spirit-settling')).toHaveLength(1);expect(host.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe('Story');
-    await act(async()=>vi.advanceTimersByTime(360));expect(host.querySelector('.spirit-settling')).toBeNull();expect(api.post).toHaveBeenCalledTimes(2);
+    expect(host.querySelector('.save-feedback')?.textContent).toContain('A new moment added');expect(host.querySelectorAll('.timeline .new-moment')).toHaveLength(1);expect(host.querySelectorAll('.spirit-motion-settle')).toHaveLength(1);expect(host.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe('Story');
+    await act(async()=>vi.advanceTimersByTime(360));expect(host.querySelector('.spirit-motion-settle')).toBeNull();expect(api.post).toHaveBeenCalledTimes(2);
   });
-  it("opens photo upload directly from the header and preserves the terrarium owner",async()=>{
-    await profile();await act(async()=>button('Add photo').click());expect(host.querySelector('[role="dialog"]')?.textContent).toContain('Add a habitat photo');expect(host.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe('Habitat photos');
+  it("opens photo upload from the photo workspace and preserves the terrarium owner",async()=>{
+    await profile();await act(async()=>button('Habitat photos').click());await act(async()=>button('Add photo').click());expect(host.querySelector('[role="dialog"]')?.textContent).toContain('Add a habitat photo');expect(host.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe('Habitat photos');
     const field=host.querySelector<HTMLInputElement>('input[type="file"]')!;Object.defineProperty(field,'files',{value:[new File(['demo'],'moss.png',{type:'image/png'})]});await act(async()=>field.dispatchEvent(new Event('change',{bubbles:true})));await fill('Caption','Moss by the glass');
     vi.mocked(api.upload).mockResolvedValueOnce(terrarium.photos![0]);await submit();const form=vi.mocked(api.upload).mock.calls[0][1] as FormData;expect(form.get('terrariumId')).toBe('cloud');expect(form.get('plantId')).toBeNull();expect(form.get('caption')).toBe('Moss by the glass');expect(host.querySelector('.save-feedback')?.textContent).toContain('Photo added');
   });

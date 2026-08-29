@@ -1,0 +1,226 @@
+/* Restrained motion is shared across both appearances; the forest has one finite reveal. */
+.route-stage { min-height:100%; }
+
+:where(
+  .button,.icon-button,.search-trigger,.sidebar-toggle,.attention-notification,
+  .appearance-switch,.sidebar nav a,.mobile-more,.more-links a,
+  .collection-card,.plant-card,.garden-item,.species-list button,
+  .search-results [role=option],.diary-entry-list a,.journal-entry,
+  .resident-list a,.cover-picker-grid > button,.format-toolbar button,.table-toolbar button
+) {
+  transition:
+    transform var(--motion-fast) var(--ease-spring),
+    background-color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease,
+    color var(--motion-fast) ease,
+    filter var(--motion-fast) ease;
+}
+
+:where(.button,.icon-button,.search-trigger,.sidebar-toggle,.attention-notification,.appearance-switch) > svg,
+.sidebar nav a > svg,.more-links a > svg,.species-list button > svg,.resident-list a > svg {
+  transition:transform var(--motion-base) var(--ease-spring);
+}
+
+@media (hover:hover) and (pointer:fine) {
+  :where(.button,.icon-button,.sidebar-toggle,.attention-notification):not(:disabled):hover { transform:translateY(-1px); }
+  :where(.button,.icon-button,.sidebar-toggle,.attention-notification):not(:disabled):hover > svg { transform:scale(1.06); }
+  .sidebar nav a:hover > svg,.more-links a:hover > svg,.species-list button:hover > svg,.resident-list a:hover > svg { transform:translateX(2px); }
+  .sidebar nav a:hover > svg { transform:translateY(-1px) scale(1.05); }
+  :where(.collection-card,.plant-card,.diary-entry-list a,.journal-entry,.resident-list a,.search-results [role=option]):hover {
+    transform:translateY(-2px);
+  }
+  :where(.collection-card,.plant-card):hover { border-color:#6f866e; box-shadow:0 12px 30px #07110a38; }
+  .photo-grid figure:hover img,.recent-photos img:hover { transform:scale(1.025); }
+  :where(.collection-card,.attention-group a,.search-results [role=option],.resident-list a):hover .spirit,
+  .profile-identity:hover .spirit { transform:translateY(-2px); }
+}
+
+:where(.button,.icon-button,.sidebar-toggle,.attention-notification,.appearance-switch,.collection-card,.plant-card,.species-list button):not(:disabled):active,
+:where(.sidebar nav a,.more-links a,.diary-entry-list a,.journal-entry,.resident-list a):active {
+  transform:translateY(1px) scale(.975);
+  transition-duration:var(--motion-press);
+}
+
+.button.primary:not(:disabled):hover { box-shadow:0 7px 20px #07100942; }
+.search-trigger:hover,.search-trigger:focus-visible { border-color:#6d826b; box-shadow:0 6px 22px #0710092e; }
+.sidebar nav a.active > svg { transform:scale(1.08); }
+.sidebar nav a.active,.mobile-more.active { box-shadow:inset 3px 0 var(--green),0 6px 18px #07100920; }
+.species-list button.active,.diary-entry-list a.active,.search-results [aria-selected=true] { box-shadow:inset 3px 0 var(--green),0 7px 18px #07100926; }
+
+:where(.field input:not([type=checkbox]),.field select,.field textarea,.inline-search,.collection-tools select,.compare-controls select,.command-input,.diary-search) {
+  transition:border-color var(--motion-fast) ease,background-color var(--motion-fast) ease,box-shadow var(--motion-fast) ease;
+}
+:where(.field input:not([type=checkbox]),.field select,.field textarea,.collection-tools select,.compare-controls select):focus-visible,
+:where(.inline-search,.command-input,.diary-search):focus-within {
+  border-color:#7e997b;
+  box-shadow:0 0 0 3px #b6d0a51c,0 7px 20px #06100920;
+}
+
+.scope-tabs button,.detail-tabs button,.diary-index-tags button,.format-toolbar button,.table-toolbar button {
+  transition:color var(--motion-fast) ease,background-color var(--motion-fast) ease,border-color var(--motion-fast) ease,transform var(--motion-fast) var(--ease-spring);
+}
+.scope-tabs button:active,.detail-tabs button:active,.diary-index-tags button:active,.format-toolbar button:active,.table-toolbar button:active { transform:scale(.96); }
+.tab-indicator { transition:transform var(--motion-base) var(--ease-spring),width var(--motion-base) var(--ease-spring); }
+.profile-tab-content.is-transitioning,.profile-tab-panel.is-transitioning { animation:content-enter var(--motion-base) var(--ease-gentle) both; }
+
+.appearance-switch > span:first-child {
+  margin-left:0;
+  transform:translateX(0);
+  transition:transform var(--motion-base) var(--ease-spring),background-color var(--motion-fast) ease;
+}
+.appearance-switch[aria-checked=true] > span:first-child { margin-left:0; transform:translateX(20px); }
+
+@media (min-width:621px) {
+  .sidebar .brand > span:last-child,.sidebar nav a span,.sidebar-toggle span {
+    display:block;
+    max-width:160px;
+    overflow:hidden;
+    white-space:nowrap;
+    opacity:1;
+    transform:translateX(0);
+    transition:max-width var(--motion-base) var(--ease-gentle),opacity var(--motion-fast) ease,transform var(--motion-base) var(--ease-gentle);
+  }
+  .sidebar-collapsed .brand > span:last-child,.sidebar-collapsed .sidebar nav a span,.sidebar-collapsed .sidebar-toggle span {
+    display:block;
+    max-width:0;
+    opacity:0;
+    transform:translateX(-5px);
+  }
+  .sidebar nav a,.sidebar-toggle,.brand { transition:gap var(--motion-base) var(--ease-gentle),padding var(--motion-base) var(--ease-gentle),background-color var(--motion-fast) ease,color var(--motion-fast) ease; }
+  .sidebar-collapsed .brand,.sidebar-collapsed .sidebar nav a,.sidebar-collapsed .sidebar-toggle { gap:0; }
+}
+
+.photo-grid figure,.recent-photos img { overflow:hidden; }
+.photo-grid img,.recent-photos img,.species-glyph img { transition:transform var(--motion-slow) var(--ease-gentle); }
+
+/* Companion roots react immediately; garden idles stay pause-controlled while the plant profile uses the same ambient poses. */
+.spirit { transition:transform var(--motion-base) var(--ease-spring); }
+.spirit img { transform-origin:center bottom; }
+.garden-item:hover .spirit,.garden-item:focus-visible .spirit { transform:translateY(-4px) scale(1.015); }
+.garden-item:active .spirit { transform:translateY(1px) scale(.95,1.03); transition-duration:var(--motion-press); }
+.spirit-motion-settle { animation:spirit-arrive var(--motion-slow) var(--ease-spring) both; }
+
+.garden-card[data-motion=running] .garden-track li[data-copy="0"] .spirit-motion-idle img {
+  animation-duration:var(--spirit-duration);
+  animation-delay:var(--spirit-delay);
+  animation-timing-function:var(--ease-gentle);
+  animation-iteration-count:infinite;
+  animation-fill-mode:both;
+  will-change:transform;
+}
+.garden-card[data-motion=running] .garden-track li[data-copy="0"] .spirit-profile-sway img { animation-name:spirit-idle-sway; }
+.garden-card[data-motion=running] .garden-track li[data-copy="0"] .spirit-profile-nod img { animation-name:spirit-idle-nod; }
+.garden-card[data-motion=running] .garden-track li[data-copy="0"] .spirit-profile-breathe img { animation-name:spirit-idle-breathe; }
+.garden-card[data-motion=running] .garden-track li[data-copy="0"] .spirit-profile-terrarium img { animation-name:spirit-idle-terrarium; }
+.living-profile .profile-identity .spirit-motion-idle img {
+  animation-duration:var(--spirit-duration);
+  animation-delay:var(--spirit-delay);
+  animation-timing-function:var(--ease-gentle);
+  animation-iteration-count:infinite;
+  animation-fill-mode:both;
+  will-change:transform;
+}
+.living-profile .profile-identity .spirit-profile-sway img { animation-name:spirit-idle-sway; }
+.living-profile .profile-identity .spirit-profile-nod img { animation-name:spirit-idle-nod; }
+.living-profile .profile-identity .spirit-profile-breathe img { animation-name:spirit-idle-breathe; }
+.living-profile .profile-identity .spirit-profile-terrarium img { animation-name:spirit-idle-terrarium; }
+
+.modal-backdrop { animation:veil-enter 200ms ease both; }
+.modal { animation:dialog-enter var(--motion-base) var(--ease-spring) both; }
+.modal-backdrop.is-exiting { animation:veil-exit 120ms ease both; }
+.modal-backdrop.is-exiting .modal { animation:dialog-exit 120ms ease both; }
+.save-feedback-message { animation:feedback-enter 240ms var(--ease-spring) both; }
+.save-feedback-message svg { animation:feedback-check var(--motion-slow) var(--ease-spring) both; }
+.save-feedback-message.is-exiting { animation:feedback-exit 120ms ease both; pointer-events:none; }
+.loading,.error-note,.success-note,.refresh-note,.refresh-progress { animation:quiet-reveal var(--motion-base) var(--ease-gentle) both; }
+.new-moment { animation:moment-enter var(--motion-slow) var(--ease-spring) both; }
+
+:root[data-forest-aesthetic="true"] body::before {
+  transform-origin:center 42%;
+  animation:forest-reveal 900ms var(--ease-gentle) both;
+}
+
+@keyframes forest-reveal {
+  from { opacity:.72; transform:scale(1.012); }
+  to { opacity:1; transform:none; }
+}
+@keyframes dialog-enter {
+  from { opacity:0; transform:translateY(10px) scale(.985); }
+  to { opacity:1; transform:none; }
+}
+@keyframes dialog-exit { to { opacity:0; transform:translateY(7px) scale(.99); } }
+@keyframes veil-enter { from { opacity:0; } to { opacity:1; } }
+@keyframes veil-exit { to { opacity:0; } }
+@keyframes content-enter {
+  from { opacity:.45; transform:translateY(5px); }
+  to { opacity:1; transform:none; }
+}
+@keyframes quiet-reveal {
+  from { opacity:.35; transform:translateY(4px); }
+  to { opacity:1; transform:none; }
+}
+@keyframes feedback-enter {
+  from { opacity:0; transform:translateY(10px) scale(.97); }
+  to { opacity:1; transform:none; }
+}
+@keyframes feedback-exit { to { opacity:0; transform:translateY(7px) scale(.98); } }
+@keyframes feedback-check {
+  0% { transform:scale(.45) rotate(-12deg); }
+  65% { transform:scale(1.12) rotate(2deg); }
+  100% { transform:none; }
+}
+@keyframes spirit-arrive {
+  0% { transform:translateY(-7px) scale(.95,1.03); }
+  62% { transform:translateY(1px) scale(1.025,.98); }
+  100% { transform:none; }
+}
+@keyframes spirit-idle-sway {
+  0%,62%,100% { transform:none; }
+  70% { transform:translateY(-1px) rotate(-.7deg); }
+  79% { transform:translateY(-2px) rotate(.65deg); }
+  88% { transform:translateY(-1px) rotate(-.25deg); }
+}
+@keyframes spirit-idle-nod {
+  0%,66%,100% { transform:none; }
+  74% { transform:translateY(1px) scale(1.008,.992) rotate(.35deg); }
+  84% { transform:translateY(-1px) scale(.996,1.006) rotate(-.25deg); }
+  92% { transform:none; }
+}
+@keyframes spirit-idle-breathe {
+  0%,58%,100% { transform:none; }
+  70% { transform:translateY(1px) scale(1.006,.988); }
+  84% { transform:translateY(-1px) scale(.998,1.008); }
+}
+@keyframes spirit-idle-terrarium {
+  0%,64%,100% { transform:none; }
+  74% { transform:translateY(-1px) rotate(-.22deg); }
+  85% { transform:translateY(-2px) rotate(.22deg); }
+  93% { transform:translateY(-1px); }
+}
+@keyframes moment-enter {
+  from { opacity:0; transform:translateY(7px) scale(.995); }
+  to { opacity:1; transform:none; }
+}
+
+@media (prefers-reduced-motion:reduce) {
+  *,*::before,*::after {
+    scroll-behavior:auto !important;
+    animation-duration:.01ms !important;
+    animation-delay:0ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:.01ms !important;
+    transition-delay:0ms !important;
+  }
+  :root[data-forest-aesthetic="true"] body::before,
+  .spirit-motion-settle,.garden-track .spirit-motion-idle img,.living-profile .spirit-motion-idle img,.save-feedback-message svg { animation:none !important; }
+  :where(.button,.icon-button,.sidebar-toggle,.attention-notification,.collection-card,.plant-card,.species-list button,
+    .sidebar nav a,.more-links a,.diary-entry-list a,.journal-entry,.resident-list a,.search-results [role=option]):hover,
+  :where(.button,.icon-button,.sidebar-toggle,.attention-notification,.collection-card,.plant-card,.species-list button,
+    .sidebar nav a,.more-links a,.diary-entry-list a,.journal-entry,.resident-list a):active,
+  .appearance-switch:active,
+  .garden-item:hover .spirit,.garden-item:focus-visible .spirit,.garden-item:active .spirit,
+  :where(.collection-card,.attention-group a,.search-results [role=option],.resident-list a):hover .spirit,
+  .profile-identity:hover .spirit,.photo-grid figure:hover img,.recent-photos img:hover { transform:none !important; }
+  .appearance-switch[aria-checked=true] > span:first-child { transform:translateX(20px) !important; }
+}

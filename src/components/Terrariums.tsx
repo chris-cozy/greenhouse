@@ -4,7 +4,6 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
 import type { Terrarium } from "../shared/types";
 import { Confirm, EmptyState, ErrorNote, Loading, PageHeader, RefreshNote, shortDate, useLoad } from "./Common";
-import { CoverPhotoControl } from "./CoverPhoto";
 import { HistoryForm } from "./PlantForms";
 import { TerrariumForm } from "./TerrariumForm";
 import { ProfilePhotos, type ProfileMoment, type ProfileSaved } from "./ProfilePhotos";
@@ -70,38 +69,36 @@ function TerrariumDetail({ id, refreshOptions, welcomeTerrariumId, onWelcomeShow
   if (loading) return <div className="content living-profile terrarium-profile"><Loading/></div>;
   if (error || !item) return <div className="content living-profile terrarium-profile"><ErrorNote message={error || "Terrarium not found."}/><button className="button ghost" onClick={() => void reload()}>Retry</button></div>;
   const residents = (item.plants || []).filter(plant => !plant.archivedAt);
+  const photoCount = item.photos?.length || 0;
   const panel = (key: TerrariumTab) => ({ id: `terrarium-panel-${key}`, role: "tabpanel", "aria-labelledby": `terrarium-tab-${key}`, hidden: tab !== key, className: `profile-tab-panel ${tab === key && hasTabbed ? "is-transitioning" : ""}` });
   return <div className="living-profile terrarium-profile">
-    <section className={`detail-hero terrarium-hero ${item.coverPhotoUrl ? "photo-hero" : ""}`} style={item.coverPhotoUrl ? { backgroundImage: `linear-gradient(90deg,rgba(16,26,20,.96),rgba(16,26,20,.36)),url(${item.coverPhotoUrl})` } : undefined}>
+    <section className="terrarium-summary-shell"><div className={`detail-hero terrarium-hero terrarium-summary-card ${item.coverPhotoUrl ? "photo-hero" : ""}`} style={item.coverPhotoUrl ? { backgroundImage: `linear-gradient(90deg,rgba(16,26,20,.96),rgba(16,26,20,.36)),url(${item.coverPhotoUrl})` } : undefined}>
       <div className="detail-hero-inner">
-        <button className="back-link" onClick={() => navigate("/terrariums")}><ArrowLeft/> Terrariums</button>
-        <div className="hero-copy"><div className="profile-identity"><Spirit key={feedback?.sequence || 0} id={item.id} kind="terrarium" size="profile" settling={settling}/><div>
+        <div className="profile-summary-toolbar"><button className="back-link" onClick={() => navigate("/terrariums")}><ArrowLeft/> Terrariums</button>
+          <button className="button ghost profile-summary-edit" onClick={() => setEditing(true)}><Edit3/> Edit</button>
+        </div>
+        <div className="hero-copy"><div className="profile-identity"><Spirit key={feedback?.sequence || 0} id={item.id} kind="terrarium" size="profile" motion={settling ? "settle" : "idle"}/><div>
           <span className="eyebrow">{item.type || "Living habitat"}</span><h1>{item.name}</h1>
         </div></div><p>{item.description || "This little world’s story is just beginning."}</p>
-          <div className="hero-meta"><span><MapPin/> {item.location || "Location not set"}</span>{item.dateCreated && <span><CalendarDays/> Created {shortDate(item.dateCreated)}</span>}<span><Leaf/> {item.plantCount} living {item.plantCount === 1 ? "plant" : "plants"}</span></div>
+          <div className="hero-meta"><span><MapPin/> {item.location || "Location not set"}</span>{item.dateCreated && <span><CalendarDays/> Created {shortDate(item.dateCreated)}</span>}<span><Leaf/> {item.plantCount} living {item.plantCount === 1 ? "plant" : "plants"}</span><span><Camera/> {photoCount} {photoCount === 1 ? "photo" : "photos"}</span></div>
         </div>
-        <div className="hero-actions"><CoverPhotoControl kind="terrarium" id={id} photos={item.photos || []} currentId={item.coverPhotoId} onSaved={() => saved("Cover photo updated.")}/>
-          <button className="button ghost" onClick={() => setEditing(true)}><Edit3/> Edit</button>
-          <button className="button ghost" onClick={() => { selectTab("photos"); setAddingPhoto(true); }}><Camera/> Add photo</button>
-          <button className="button primary" onClick={() => setHistory(true)}><Plus/> Add update</button>
-        </div><SaveFeedback message={feedback?.message} sequence={feedback?.sequence}/>
+        <SaveFeedback message={feedback?.message} sequence={feedback?.sequence}/>
       </div>
-    </section>
+    </div></section>
     <div className="detail-content">
-      <ProfileTabs tabs={terrariumTabs} prefix="terrarium" label="Terrarium profile" selected={tab} onSelect={selectTab}/>
-      <RefreshNote refreshing={refreshing} error={refreshError} onRetry={() => void reload({ background: true })}/>
-      <div className="profile-tab-content">
+      <div className="terrarium-record">
+        <ProfileTabs tabs={terrariumTabs} prefix="terrarium" label="Terrarium profile" selected={tab} onSelect={selectTab}/>
+        <RefreshNote refreshing={refreshing} error={refreshError} onRetry={() => void reload({ background: true })}/>
+        <div className="profile-tab-content">
         <section {...panel("story")}><div className="story-layout"><div>
-          <div className="section-heading"><div><span className="eyebrow">Meaningful changes</span><h2>A little world, growing</h2></div><button onClick={() => setHistory(true)}>Add update</button></div>
+          <div className="section-heading"><div><span className="eyebrow">Meaningful changes</span><h2>A little world, growing</h2></div><button className="button primary" onClick={() => setHistory(true)}><Plus/> Add update</button></div>
           {item.history?.length ? <div className="timeline">{item.history.map(moment => <article key={`${moment.kind}-${moment.id}`} className={`${moment.kind} ${newMoment?.kind === moment.kind && newMoment.id === moment.id ? "new-moment" : ""}`} onAnimationEnd={() => setNewMoment(null)}>
             <div className={`timeline-mark ${moment.kind}`}>{moment.kind === "photo" ? <Camera/> : moment.kind === "journal" ? <Flower2/> : <History/>}</div>
             <div><time>{shortDate(moment.date)}</time><h3>{moment.title}</h3><p>{moment.detail}</p>{moment.photoUrl && <img src={moment.photoUrl} alt={moment.detail || "Habitat progress"}/>}
               {moment.journalId && <Link to={`/journal/${moment.journalId}`}>Read journal entry <ChevronRight/></Link>}
             </div>
           </article>)}</div> : <EmptyState icon={<Spirit id={id} kind="terrarium" size="empty"/>} title="Its story starts here" copy="Photos, linked journal entries, and little changes will gather into this habitat’s story."/>}
-        </div><aside className="story-aside"><div className="fact-card"><span className="eyebrow">At a glance</span><dl>
-          <div><dt>Habitat</dt><dd>{item.type || "Not recorded"}</dd></div><div><dt>Home</dt><dd>{item.location || "Not recorded"}</dd></div><div><dt>Living plants</dt><dd>{item.plantCount}</dd></div><div><dt>Photos</dt><dd>{item.photos?.length || 0}</dd></div>
-        </dl></div></aside></div></section>
+        </div></div></section>
         <section {...panel("residents")}><div className="section-heading"><div><span className="eyebrow">Residents</span><h2>Plants inside</h2></div><span>{item.plantCount} living here</span></div>
           {residents.length ? <div className="resident-list">{residents.map(plant => <Link to={`/plants/${plant.id}`} key={plant.id}>
             <div className="resident-thumb" style={plant.profilePhotoUrl ? { backgroundImage: `url(${plant.profilePhotoUrl})` } : undefined}>{!plant.profilePhotoUrl && <Leaf/>}</div>
@@ -116,9 +113,10 @@ function TerrariumDetail({ id, refreshOptions, welcomeTerrariumId, onWelcomeShow
         </dl><button className="button ghost" onClick={() => setEditing(true)}><Edit3/> Edit habitat</button></article>
           <article className="danger-card"><Sprout/><h3>Habitat controls</h3><p>Deleting this terrarium makes its resident plants standalone. They keep their complete stories.</p><button className="button danger-text" onClick={() => setConfirm(true)}><Trash2/> Delete terrarium</button></article>
         </div></section>
+        </div>
       </div>
     </div>
-    <TerrariumForm open={editing} item={item} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); saved("Terrarium details saved."); }}/>
+    <TerrariumForm open={editing} item={item} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); saved("Terrarium details saved."); }} onCoverSaved={() => saved("Cover photo updated.")}/>
     <HistoryForm open={history} terrariumId={id} onClose={() => setHistory(false)} onSaved={eventId => { setHistory(false); saved("A new moment added to the story.", { kind: "event", id: eventId }); }}/>
     {confirm && <Confirm title={`Delete ${item.name}?`} copy="Resident plants will become standalone and keep their complete histories. The terrarium record and its photos will be removed." onClose={() => setConfirm(false)} onConfirm={async () => { await api.delete(`/api/terrariums/${id}`); refreshOptions(); navigate("/terrariums"); }}/>}
   </div>;

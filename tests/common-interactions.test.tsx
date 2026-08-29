@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
-import { act, StrictMode, useState } from "react";
+import { act, StrictMode, useRef, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api } from "../src/api";
 import { useLoad } from "../src/components/useLoad";
 import { Modal } from "../src/components/Common";
+import { SaveFeedback, useRouteMotion } from "../src/components/Interaction";
 
 vi.mock("../src/api",()=>({api:{get:vi.fn()}}));
 let host:HTMLDivElement,root:Root,reader:ReturnType<typeof useLoad<{name:string}>>;
@@ -122,5 +123,37 @@ describe("controlled dialog presence",()=>{
     await act(async()=>tab());expect(document.activeElement).toBe(host.querySelector('summary'));
     await act(async()=>tab());expect(document.activeElement?.textContent).toBe('Save');
     await act(async()=>tab());expect(document.activeElement?.getAttribute('aria-label')).toBe('Close');
+  });
+});
+
+describe("motion feedback",()=>{
+  it("retains success feedback for its exit without delaying the announced message",async()=>{
+    vi.useFakeTimers();
+    await act(async()=>root.render(<SaveFeedback message="Plant saved" sequence={1}/>));
+    expect(host.querySelector('.save-feedback-message')?.textContent).toContain('Plant saved');
+    await act(async()=>root.render(<SaveFeedback/>));
+    expect(host.querySelector('.save-feedback-message.is-exiting')?.textContent).toContain('Plant saved');
+    await act(async()=>vi.advanceTimersByTime(120));
+    expect(host.querySelector('.save-feedback-message')).toBeNull();
+  });
+  it("removes feedback immediately when reduced motion is active",async()=>{
+    vi.stubGlobal("matchMedia",vi.fn(()=>({matches:true,addEventListener:vi.fn(),removeEventListener:vi.fn()})));
+    await act(async()=>root.render(<SaveFeedback message="Plant saved" sequence={1}/>));
+    await act(async()=>root.render(<SaveFeedback/>));
+    expect(host.querySelector('.save-feedback-message')).toBeNull();
+  });
+  it("animates route commits without remounting their contents",async()=>{
+    const original=Object.getOwnPropertyDescriptor(HTMLElement.prototype,'animate'),cancel=vi.fn();
+    const animate=vi.fn(()=>({cancel}) as unknown as Animation);
+    Object.defineProperty(HTMLElement.prototype,'animate',{configurable:true,value:animate});
+    function Harness(){const [route,setRoute]=useState('one'),stage=useRef<HTMLDivElement>(null);useRouteMotion(stage,route);return <><button onClick={()=>setRoute('two')}>Navigate</button><div ref={stage}><span data-route-child>Retained</span></div></>}
+    try {
+      await act(async()=>root.render(<Harness/>));const child=host.querySelector('[data-route-child]');
+      await act(async()=>host.querySelector<HTMLButtonElement>('button')!.click());
+      expect(host.querySelector('[data-route-child]')).toBe(child);expect(animate).toHaveBeenCalledTimes(2);expect(cancel).toHaveBeenCalled();
+      await act(async()=>root.render(<></>));
+    } finally {
+      if(original)Object.defineProperty(HTMLElement.prototype,'animate',original);else delete (HTMLElement.prototype as {animate?:unknown}).animate;
+    }
   });
 });

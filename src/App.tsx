@@ -12,6 +12,7 @@ import { TerrariumForm } from "./components/TerrariumForm";
 import { TerrariumDetailPage, TerrariumsPage } from "./components/Terrariums";
 import { SpeciesPage } from "./components/Library";
 import { SettingsPage } from "./components/JournalSettings";
+import { useRouteMotion } from "./components/Interaction";
 const JournalWorkspace=lazy(()=>import("./journal/JournalWorkspace").then(module=>({default:module.JournalWorkspace})));
 
 const nav=[
@@ -48,6 +49,8 @@ function Shell(){
   const [creatingPlant,setCreatingPlant]=useState(false);
   const [creatingTerrarium,setCreatingTerrarium]=useState(false);
   const gardenState=useRef<GardenViewState|undefined>(undefined);
+  const routeStage=useRef<HTMLDivElement>(null);
+  useRouteMotion(routeStage,location.key);
   const [welcomePlantId,setWelcomePlantId]=useState<string|null>(null);
   const [welcomeTerrariumId,setWelcomeTerrariumId]=useState<string|null>(null);
   const [sidebarCollapsed,setSidebarCollapsed]=useState(()=>{
@@ -80,7 +83,7 @@ function Shell(){
     <main>
       <header className="topbar"><button className="search-trigger" onClick={()=>setSearch(true)}><Search size={17}/><span>Search your greenhouse…</span><kbd>Ctrl K</kbd></button><AttentionNotifications data={notifications}/></header>
       <div className="page-scroll">
-        <Suspense fallback={<Loading/>}><Routes>
+        <div className="route-stage" ref={routeStage}><Suspense fallback={<Loading/>}><Routes>
           <Route path="/" element={<Dashboard onAddPlant={()=>setCreatingPlant(true)} onAddTerrarium={()=>setCreatingTerrarium(true)} gardenState={gardenState.current} onGardenStateChange={state=>{gardenState.current=state}}/>}/>
           <Route path="/plants" element={<PlantsPage options={current} onAddPlant={()=>setCreatingPlant(true)}/>}/>
           <Route path="/plants/:id" element={<PlantDetailPage options={current} refreshOptions={refreshApp} welcomePlantId={welcomePlantId} onWelcomeShown={()=>setWelcomePlantId(null)}/>}/>
@@ -92,7 +95,7 @@ function Shell(){
           <Route path="/journal/:id" element={<JournalWorkspace options={current} refreshOptions={refreshApp}/>}/>
           <Route path="/settings" element={<SettingsPage/>}/>
           <Route path="*" element={<Navigate to="/" replace/>}/>
-        </Routes></Suspense>
+        </Routes></Suspense></div>
       </div>
     </main>
     <PlantForm open={creatingPlant} options={current} onClose={()=>setCreatingPlant(false)} onSaved={plant=>{setCreatingPlant(false);setWelcomePlantId(plant.id);refreshApp();navigate(`/plants/${plant.id}`)}}/>

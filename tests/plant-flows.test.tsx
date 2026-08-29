@@ -106,20 +106,28 @@ describe("profile feedback and refresh",()=>{
     } finally {stop();localStorage.removeItem('greenhouse-forest-aesthetic');document.documentElement.removeAttribute('data-forest-aesthetic')}
   });
   it("does not celebrate routine visits and uses the same plant spirit",async()=>{
-    await profile();expect(host.querySelector('.spirit-profile img')?.getAttribute('src')).toBe(getPlantIcon('fern'));expect(host.querySelector('.spirit-settling')).toBeNull();expect(host.querySelector('.save-feedback')?.textContent).toBe('');
+    await profile();expect(host.querySelector('.spirit-profile img')?.getAttribute('src')).toBe(getPlantIcon('fern'));expect(host.querySelector('.spirit-motion-idle')).not.toBeNull();expect(host.querySelector('.spirit-motion-settle')).toBeNull();expect(host.querySelector('.save-feedback')?.textContent).toBe('');
+  });
+  it("consolidates metadata and places profile actions at their point of use",async()=>{
+    await profile();const metadata=host.querySelector('.hero-meta')?.textContent;
+    expect(host.querySelector('.plant-summary-shell > .plant-summary-card.detail-hero')).not.toBeNull();
+    expect(metadata).toContain('Window');expect(metadata).toContain('Acquired Feb 3, 2024');expect(metadata).toContain('Plant swap');expect(metadata).toContain('2 photos');
+    expect(host.querySelector('.profile-summary-toolbar .profile-summary-edit')?.textContent).toContain('Edit');expect(host.querySelector('.profile-action-bar')).toBeNull();
+    expect(host.querySelector('#plant-panel-story .section-heading .button.primary')?.textContent).toContain('Add update');expect(host.querySelector('.detail-hero')?.textContent).not.toContain('Add update');
+    expect(host.querySelector('.plant-record [role="tablist"]')).not.toBeNull();expect(host.querySelector('.story-aside .fact-card')).toBeNull();
   });
   it("shows the welcome only once, even under Strict Mode",async()=>{
     vi.useFakeTimers();const consumed=vi.fn();await profile('fern',consumed);
-    expect(consumed).toHaveBeenCalledOnce();expect(host.querySelector('.save-feedback')?.textContent).toContain('Welcome');expect(host.querySelector('.spirit-settling')).not.toBeNull();
-    await act(async()=>vi.advanceTimersByTime(360));expect(host.querySelector('.spirit-settling')).toBeNull();
-    await act(async()=>button('Care guidance').click());expect(consumed).toHaveBeenCalledOnce();expect(host.querySelector('.spirit-settling')).toBeNull();
+    expect(consumed).toHaveBeenCalledOnce();expect(host.querySelector('.save-feedback')?.textContent).toContain('Welcome');expect(host.querySelector('.spirit-motion-settle')).not.toBeNull();
+    await act(async()=>vi.advanceTimersByTime(360));expect(host.querySelector('.spirit-motion-settle')).toBeNull();expect(host.querySelector('.spirit-motion-idle')).not.toBeNull();
+    await act(async()=>button('Care guidance').click());expect(consumed).toHaveBeenCalledOnce();expect(host.querySelector('.spirit-motion-settle')).toBeNull();
   });
   it("keeps the photo tab and comparison mounted if a successful cover write cannot refresh",async()=>{
     vi.useFakeTimers();await profile();await act(async()=>button('Progress photos').click());await act(async()=>button('Compare photos').click());
     const comparison=host.querySelector('.compare-panel');
-    await act(async()=>button('Choose cover photo').click());vi.mocked(api.post).mockResolvedValueOnce({...plant,profilePhotoId:'second'});vi.mocked(api.get).mockRejectedValueOnce(new Error('Refresh unavailable'));
+    await act(async()=>button('Edit').click());expect(host.querySelector('.edit-cover-field')).not.toBeNull();vi.mocked(api.post).mockResolvedValueOnce({...plant,profilePhotoId:'second'});vi.mocked(api.get).mockRejectedValueOnce(new Error('Refresh unavailable'));
     await act(async()=>host.querySelector<HTMLButtonElement>('[aria-label="Choose cover: second"]')!.click());
-    expect(api.post).toHaveBeenCalledOnce();expect(host.querySelector('.save-feedback')?.textContent).toContain('Cover photo updated');expect(host.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe('Progress photos');
+    expect(api.post).toHaveBeenCalledOnce();expect(api.put).not.toHaveBeenCalled();expect(host.querySelector('.save-feedback')?.textContent).toContain('Cover photo updated');expect(host.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe('Progress photos');
     expect(host.querySelector('.compare-panel')).toBe(comparison);expect(host.querySelector('.refresh-note')?.textContent).toContain('Refresh unavailable');
     await act(async()=>vi.advanceTimersByTime(120));vi.mocked(api.get).mockResolvedValueOnce({...plant,profilePhotoId:'second',profilePhotoUrl:'/media/second.jpg'});
     await act(async()=>button('Retry refresh').click());expect(api.post).toHaveBeenCalledOnce();expect(host.querySelector('.refresh-note')).toBeNull();expect(host.querySelector('.compare-panel')).toBe(comparison);

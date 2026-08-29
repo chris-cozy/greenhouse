@@ -163,7 +163,8 @@ export function Garden({ plants, terrariums, initialState, onViewStateChange }: 
     suppressClick.current = drag.current.moved; drag.current = null; setDragging(false); rest(); publish();
   };
   const canonicalLinks = () => Array.from(track.current?.querySelectorAll<HTMLAnchorElement>('li[data-copy="0"] .garden-item') || []);
-  return <article ref={region} className={`garden-card ${items.length ? "" : "empty"}`} role="region" aria-roledescription="carousel" aria-label="Your collection"
+  const ambientMotion = loop && !paused && !reduced && !hovered && !touching && !dragging && visible && onscreen && !overlays;
+  return <article ref={region} className={`garden-card ${items.length ? "" : "empty"}`} data-motion={ambientMotion ? "running" : "paused"} role="region" aria-roledescription="carousel" aria-label="Your collection"
     onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
     onPointerDownCapture={() => { pointerFocus.current = true; }} onPointerUpCapture={() => { pointerFocus.current = false; }} onPointerCancelCapture={() => { pointerFocus.current = false; }} onKeyDownCapture={() => { pointerFocus.current = false; }}
     onFocusCapture={() => { if (!pointerFocus.current) changePlayback(true, false); }}>
@@ -212,7 +213,7 @@ export function Garden({ plants, terrariums, initialState, onViewStateChange }: 
           event.preventDefault(); links[next]?.focus({ preventScroll: true }); setAnnouncement(`${items[next].item.name}. ${next + 1} of ${items.length} companions.`);
         }}>
         {(loop ? [-1, 0, 1] : [0]).flatMap(copy => items.map(({ item, kind, key }, index) => <li data-copy={copy} data-index={index} key={`${copy}:${key}`} aria-hidden={copy !== 0 ? true : undefined} aria-posinset={copy === 0 ? index + 1 : undefined} aria-setsize={copy === 0 ? items.length : undefined}>
-          {copy === 0 ? <Link className={`garden-item ${kind}`} to={`/${kind === "plant" ? "plants" : "terrariums"}/${item.id}`} onMouseDown={event => event.preventDefault()} aria-label={`Open ${kind} ${item.name}`}><Spirit id={item.id} kind={kind} size="garden"/><span className="garden-item-label">{item.name}</span></Link> : <div className={`garden-item ${kind}`} onMouseDown={event => event.preventDefault()} onClick={() => navigate(`/${kind === "plant" ? "plants" : "terrariums"}/${item.id}`)}><Spirit id={item.id} kind={kind} size="garden"/><span className="garden-item-label">{item.name}</span></div>}
+          {copy === 0 ? <Link className={`garden-item ${kind}`} to={`/${kind === "plant" ? "plants" : "terrariums"}/${item.id}`} onMouseDown={event => event.preventDefault()} aria-label={`Open ${kind} ${item.name}`}><Spirit id={item.id} kind={kind} size="garden" motion="idle"/><span className="garden-item-label">{item.name}</span></Link> : <div className={`garden-item ${kind}`} onMouseDown={event => event.preventDefault()} onClick={() => navigate(`/${kind === "plant" ? "plants" : "terrariums"}/${item.id}`)}><Spirit id={item.id} kind={kind} size="garden" motion="still"/><span className="garden-item-label">{item.name}</span></div>}
         </li>))}
       </ul> : <div className="garden-empty"><Sprout/><p>Add a plant or terrarium to begin your garden.</p></div>}
     </div>

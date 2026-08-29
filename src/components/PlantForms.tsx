@@ -2,14 +2,15 @@ import { type FormEvent, useEffect, useState } from "react";
 import { api } from "../api";
 import type { AppOptions, CareItem, HistoryEventType, Plant, PlantStatus } from "../shared/types";
 import { ErrorNote, Field, FormActions, Modal, prettyStatus, splitTags } from "./Common";
+import { CoverPhotoPicker } from "./CoverPhoto";
 import { useMutation } from "./Interaction";
 
 export const plantStatuses: PlantStatus[] = ["healthy", "needs_attention", "recovering", "dormant", "deceased"];
 const careTypes = ["watering", "misting", "light", "humidity", "temperature", "fertilization", "pruning", "repotting", "custom"];
 const blankPlant = { name: "", speciesId: "", description: "", dateAcquired: "", source: "", location: "", terrariumId: "", status: "healthy", dateOfDeath: "", causeOfDeath: "", finalNotes: "", tags: [] as string[] };
 
-export function PlantForm({ plant, options, open = true, onClose, onSaved }: {
-  plant?: Plant; options: AppOptions; open?: boolean; onClose: () => void; onSaved: (plant: Plant) => void;
+export function PlantForm({ plant, options, open = true, onClose, onSaved, onCoverSaved }: {
+  plant?: Plant; options: AppOptions; open?: boolean; onClose: () => void; onSaved: (plant: Plant) => void; onCoverSaved?: () => void;
 }) {
   const [value, setValue] = useState({ ...blankPlant, ...plant, tags: plant?.tags || [] });
   const [tags, setTags] = useState(value.tags.join(", "));
@@ -50,6 +51,10 @@ export function PlantForm({ plant, options, open = true, onClose, onSaved }: {
     <form className="form-grid scroll-form plant-form" onSubmit={submit}>
       <fieldset className="form-fields" disabled={mutation.busy}>
         <Field label="Personal name" wide={!plant}><input autoFocus required value={value.name} onChange={e => set("name", e.target.value)} placeholder="e.g. Mosslight"/></Field>
+        {plant && onCoverSaved && <section className="edit-cover-field field-wide" role="group" aria-labelledby={`plant-cover-heading-${plant.id}`}>
+          <div className="edit-cover-heading"><span id={`plant-cover-heading-${plant.id}`}>Cover photo</span><small>Choose which progress photo represents this plant across the greenhouse.</small></div>
+          <CoverPhotoPicker kind="plant" id={plant.id} photos={plant.photos || []} currentId={plant.profilePhotoId} embedded onSaved={onCoverSaved}/>
+        </section>}
         {plant ? optionalFields : <details className="form-more" open={details} onToggle={e => setDetails(e.currentTarget.open)}><summary>More details</summary><div className="form-grid">{optionalFields}</div></details>}
       </fieldset>
       {mutation.error && <div className="field-wide"><ErrorNote message={mutation.error}/></div>}

@@ -1,4 +1,3 @@
-import { CoverPhotoControl } from "./CoverPhoto";
 import { useEffect, useRef, useState } from "react";
 import { Archive, ArrowLeft, CalendarDays, Camera, ChevronRight, CircleAlert, Droplets, Edit3, Flower2, History, Leaf, MapPin, Plus, Trash2 } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -81,27 +80,29 @@ function PlantDetail({ id, options, refreshOptions, welcomePlantId, onWelcomeSho
   const place = plant.terrariumName || plant.location || "Location not set";
   const panel = (key: ProfileTab) => ({ id: `plant-panel-${key}`, role: "tabpanel", "aria-labelledby": `plant-tab-${key}`, hidden: tab !== key, className: `plant-tab-panel profile-tab-panel ${tab === key && hasTabbed ? "is-transitioning" : ""}` });
   return <div className="plant-profile living-profile">
-    <section className={`detail-hero ${plant.profilePhotoUrl ? "photo-hero" : ""}`} style={plant.profilePhotoUrl ? { backgroundImage: `linear-gradient(90deg,rgba(16,26,20,.96),rgba(16,26,20,.36)),url(${plant.profilePhotoUrl})` } : undefined}>
+    <section className="plant-summary-shell"><div className={`detail-hero plant-summary-card ${plant.profilePhotoUrl ? "photo-hero" : ""}`} style={plant.profilePhotoUrl ? { backgroundImage: `linear-gradient(90deg,rgba(16,26,20,.96),rgba(16,26,20,.36)),url(${plant.profilePhotoUrl})` } : undefined}>
       <div className="detail-hero-inner">
-        <button className="back-link" onClick={() => navigate("/plants")}><ArrowLeft/> Collection</button>
-        <div className="hero-copy"><div className="profile-identity"><Spirit key={feedback?.sequence || 0} id={plant.id} size="profile" settling={settling}/><div>
+        <div className="profile-summary-toolbar"><button className="back-link" onClick={() => navigate("/plants")}><ArrowLeft/> Collection</button>
+          <button className="button ghost profile-summary-edit" onClick={() => setEditing(true)}><Edit3/> Edit</button>
+        </div>
+        <div className="hero-copy"><div className="profile-identity"><Spirit key={feedback?.sequence || 0} id={plant.id} size="profile" motion={settling ? "settle" : "idle"}/><div>
           <span className={`status ${plant.status}`}>{prettyStatus(plant.status)}</span><h1>{plant.name}</h1>
           <em>{plant.speciesCommonName || "Unidentified plant"}{plant.speciesScientificName && ` · ${plant.speciesScientificName}`}</em>
         </div></div><p>{plant.description || "This plant’s story is just beginning."}</p>
-          <div className="hero-meta"><span><MapPin/> {place}</span>{plant.dateAcquired && <span><CalendarDays/> Acquired {shortDate(plant.dateAcquired)}</span>}</div><Tags items={plant.tags}/>
-        </div>
-        <div className="hero-actions"><CoverPhotoControl kind="plant" id={plant.id} photos={plant.photos || []} currentId={plant.profilePhotoId} onSaved={() => saved("Cover photo updated.")}/>
-          <button className="button ghost" onClick={() => setEditing(true)}><Edit3/> Edit</button><button className="button primary" onClick={() => setHistory(true)}><Plus/> Add update</button>
+          <div className="hero-meta"><span><MapPin/> {place}</span>{plant.dateAcquired && <span><CalendarDays/> Acquired {shortDate(plant.dateAcquired)}</span>}
+            <span><Leaf/> {plant.source || "Source not recorded"}</span><span><Camera/> {plant.photos?.length || 0} {(plant.photos?.length || 0) === 1 ? "photo" : "photos"}</span>
+          </div><Tags items={plant.tags}/>
         </div>
         <SaveFeedback message={feedback?.message} sequence={feedback?.sequence}/>
       </div>
-    </section>
+    </div></section>
     <div className="detail-content">
-      <ProfileTabs tabs={profileTabs} prefix="plant" label="Plant profile" selected={tab} onSelect={next => { setHasTabbed(true); setTab(next); }}/>
-      <RefreshNote refreshing={refreshing} error={refreshError} onRetry={() => void reload({ background: true })}/>
-      <div className="plant-tab-content profile-tab-content">
+      <div className="plant-record">
+        <ProfileTabs tabs={profileTabs} prefix="plant" label="Plant profile" selected={tab} onSelect={next => { setHasTabbed(true); setTab(next); }}/>
+        <RefreshNote refreshing={refreshing} error={refreshError} onRetry={() => void reload({ background: true })}/>
+        <div className="plant-tab-content profile-tab-content">
         <section {...panel("story")}><div className="story-layout"><div>
-          <div className="section-heading"><div><span className="eyebrow">Meaningful changes</span><h2>The story so far</h2></div><button onClick={() => setHistory(true)}>Add update</button></div>
+          <div className="section-heading"><div><span className="eyebrow">Meaningful changes</span><h2>The story so far</h2></div><button className="button primary" onClick={() => setHistory(true)}><Plus/> Add update</button></div>
           {plant.history?.length ? <div className="timeline">{plant.history.map(item => <article key={`${item.kind}-${item.id}`}
             className={`${item.kind} ${newMoment?.id === item.id && newMoment.kind === item.kind ? "new-moment" : ""}`} onAnimationEnd={() => setNewMoment(null)}>
             <div className={`timeline-mark ${item.kind}`}>{item.kind === "photo" ? <Camera/> : item.kind === "journal" ? <Flower2/> : <History/>}</div>
@@ -109,9 +110,7 @@ function PlantDetail({ id, options, refreshOptions, welcomePlantId, onWelcomeSho
               {item.journalId && <Link to={`/journal/${item.journalId}`}>Read journal entry <ChevronRight/></Link>}
             </div>
           </article>)}</div> : <EmptyState icon={<Spirit id={plant.id} size="empty"/>} title="Its story starts here" copy="Acquisition, photos, journal entries, and meaningful updates will gather into this timeline."/>}
-        </div><aside className="story-aside"><div className="fact-card"><span className="eyebrow">At a glance</span><dl>
-          <div><dt>Status</dt><dd>{prettyStatus(plant.status)}</dd></div><div><dt>Home</dt><dd>{place}</dd></div><div><dt>Source</dt><dd>{plant.source || "Not recorded"}</dd></div><div><dt>Photos</dt><dd>{plant.photos?.length || 0}</dd></div>
-        </dl></div>{plant.status === "deceased" && <div className="memorial-card"><Leaf/><span className="eyebrow">Remembered</span><h3>{plant.dateOfDeath ? shortDate(plant.dateOfDeath) : "Date unknown"}</h3><p>{plant.causeOfDeath || "Cause not recorded"}</p><small>{plant.finalNotes}</small></div>}</aside></div></section>
+        </div>{plant.status === "deceased" && <aside className="story-aside memorial-aside"><div className="memorial-card"><Leaf/><span className="eyebrow">Remembered</span><h3>{plant.dateOfDeath ? shortDate(plant.dateOfDeath) : "Date unknown"}</h3><p>{plant.causeOfDeath || "Cause not recorded"}</p><small>{plant.finalNotes}</small></div></aside>}</div></section>
         <section {...panel("care")}><div className="tab-toolbar"><p>Guidance lives here without asking you to log every watering.</p><button className="button primary" onClick={() => openCare()}><Plus/> Add guidance</button></div>
           {plant.careItems?.length ? <div className="care-grid">{plant.careItems.map(item => <article className="care-card" key={item.id}><div className="care-icon">{item.activityType === "watering" || item.activityType === "misting" ? <Droplets/> : <Leaf/>}</div><div><span className="eyebrow">{item.customLabel || prettyStatus(item.activityType)}</span><h3>{item.guidance}</h3>{item.notes && <p>{item.notes}</p>}<footer>{item.cadenceDays && <span>About every {item.cadenceDays} days</span>}{item.reminderEnabled && <span className="reminder-pill"><CircleAlert/> Reminder {shortDate(item.nextReminderDate)}</span>}<button onClick={() => openCare(item)}>Edit</button></footer></div></article>)}</div> : <EmptyState icon={<Spirit id={plant.id} size="empty"/>} title="Care that fits this plant" copy="Add general guidance such as “water when the top layer is dry.” Schedules are optional." action={<button className="button primary" onClick={() => openCare()}>Add guidance</button>}/>}
         </section>
@@ -122,9 +121,10 @@ function PlantDetail({ id, options, refreshOptions, welcomePlantId, onWelcomeSho
           <button className="button ghost" disabled={archive.busy} onClick={() => void archive.run(() => api.post(`/api/plants/${plant.id}/archive`, { archived: !plant.archivedAt }), () => { refreshOptions(); navigate("/plants"); })}>{plant.archivedAt ? "Return to collection" : "Archive plant"}</button>
           <button className="button danger-text" onClick={() => setConfirm(true)}><Trash2/> Delete</button>
         </div>{archive.error && <ErrorNote message={archive.error}/>}</article></div></section>
+        </div>
       </div>
     </div>
-    <PlantForm open={editing} plant={plant} options={options} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); saved("Plant details saved."); }}/>
+    <PlantForm open={editing} plant={plant} options={options} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); saved("Plant details saved."); }} onCoverSaved={() => saved("Cover photo updated.")}/>
     {care && <CareForm key={care.version} open={careOpen} plantId={plant.id} item={care.item} onClose={() => setCareOpen(false)} onSaved={() => { setCareOpen(false); saved("Care guidance saved."); }}/>}
     <HistoryForm open={history} plantId={plant.id} onClose={() => setHistory(false)} onSaved={eventId => { setHistory(false); saved("A new moment added to the story.", { kind: "event", id: eventId }); }}/>
     {confirm && <Confirm title={`Delete ${plant.name}?`} copy="This permanently removes the profile, photos, care guidance, and history. Linked journal entries remain, with this plant link removed." onClose={() => setConfirm(false)} onConfirm={async () => { await api.delete(`/api/plants/${plant.id}`); refreshOptions(); navigate("/plants"); }}/>}

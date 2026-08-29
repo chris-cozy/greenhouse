@@ -33,7 +33,8 @@
 :root[data-forest-aesthetic="true"] :is(
   .garden-card, .dashboard-page .panel, .recent-photos, .reminder-strip,
   .getting-started, .settings-card, .library-layout, .diary-workspace,
-  .living-collection .collection-card, .living-profile .fact-card,
+  .living-collection .collection-card, .living-profile .profile-action-bar,
+  .living-profile :is(.plant-record,.terrarium-record), .living-profile .fact-card,
   .living-profile .care-card, .environment-card, .danger-card,
   .living-profile .photo-grid figure, .compare-panel
 ) {
@@ -45,7 +46,8 @@
 :root[data-forest-aesthetic="true"] :is(
   .garden-card, .dashboard-page .panel, .recent-photos, .reminder-strip,
   .getting-started, .settings-card, .library-layout, .diary-workspace,
-  .living-collection .collection-card, .living-profile .fact-card,
+  .living-collection .collection-card, .living-profile .profile-action-bar,
+  .living-profile :is(.plant-record,.terrarium-record), .living-profile .fact-card,
   .living-profile .care-card, .environment-card, .danger-card,
   .living-profile .photo-grid figure, .compare-panel,
   .sidebar, .topbar
@@ -87,10 +89,13 @@
   background:var(--reference-surface);
   border-radius:12px;
 }
+:root[data-forest-aesthetic="true"] .living-profile :is(.profile-action-bar,.plant-record,.terrarium-record) { --glass-surface:var(--reference-surface); }
+:root[data-forest-aesthetic="true"] .living-profile :is(.plant-record,.terrarium-record) .detail-tabs { background:transparent; border-radius:0; }
 :root[data-forest-aesthetic="true"] .living-profile .timeline {
   background:var(--reference-surface);
   border-radius:20px;
 }
+:root[data-forest-aesthetic="true"] .living-profile :is(.plant-record,.terrarium-record) .timeline { background:transparent; border-radius:0; }
 :root[data-forest-aesthetic="true"] .living-profile :is(.tab-toolbar,.section-heading) { position:relative; }
 :root[data-forest-aesthetic="true"] .living-profile :is(.tab-toolbar,.section-heading)::before {
   content:"";
@@ -101,7 +106,9 @@
   border-radius:12px;
   pointer-events:none;
 }
+:root[data-forest-aesthetic="true"] .living-profile :is(.plant-record,.terrarium-record) :is(.tab-toolbar,.section-heading)::before { content:none; }
 :root[data-forest-aesthetic="true"] .section-heading :is(a,button) { color:var(--muted); }
+:root[data-forest-aesthetic="true"] .section-heading .button.primary { color:#192019; }
 :root[data-forest-aesthetic="true"] :is(.empty-state,.loading) {
   background:var(--reference-surface);
   border-radius:20px;
