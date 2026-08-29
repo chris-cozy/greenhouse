@@ -176,6 +176,25 @@ button:disabled { transform: none; }
 .edit-cover-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
 .edit-cover-heading > span { color: var(--cream); font-weight: 650; }
 .edit-cover-heading small { color: var(--muted); line-height: 1.45; text-align: right; }
+.sprite-picker { display: grid; grid-template-rows: auto minmax(0,1fr); gap: 14px; min-width: 0; height: 340px; padding: 18px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel2); }
+.sprite-picker-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
+.sprite-picker-heading > span { color: var(--cream); font-weight: 650; }
+.sprite-picker-heading small { color: var(--muted); line-height: 1.45; text-align: right; }
+.sprite-picker-grid { display: grid; grid-template-columns: minmax(0,1fr); align-content: start; gap: 8px; min-height: 0; padding-right: 6px; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.sprite-choice { position: relative; display: grid; grid-template-columns: 48px minmax(0,1fr); grid-template-rows: auto auto; align-items: center; justify-items: start; gap: 2px 12px; min-width: 0; min-height: 56px; padding: 6px 44px 6px 8px; border: 1px solid var(--line); border-radius: 12px; background: var(--input); color: var(--cream); cursor: pointer; text-align: left; transition: border-color 160ms ease, background-color 160ms ease, transform 160ms var(--ease-settle); }
+.sprite-choice::after { position: absolute; right: 16px; top: 50%; width: 14px; height: 14px; border: 1px solid #78936f; border-radius: 50%; content: ""; transform: translateY(-50%); }
+.sprite-choice:hover { border-color: #78936f; transform: translateX(1px); }
+.sprite-choice.selected { border-color: var(--green); background: #263b2c; box-shadow: 0 0 0 1px var(--green); }
+.sprite-choice.selected::after { border-color: var(--green); background: var(--green); box-shadow: inset 0 0 0 4px #263b2c; }
+.sprite-choice input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.sprite-choice:has(input:focus-visible) { outline: 2px solid var(--green); outline-offset: 3px; }
+.sprite-choice-preview { grid-row: 1 / -1; display: flex; align-items: center; justify-content: center; width: 48px; height: 44px; overflow: hidden; }
+.sprite-choice-preview img { display: block; width: 40px; height: 44px; object-fit: contain; object-position: center; filter: drop-shadow(0 2px 2px #040d0955); }
+.sprite-picker-terrarium .sprite-choice-preview img { width: 44px; }
+.sprite-choice strong { grid-column: 2; min-width: 0; font-size: 13px; line-height: 1.35; overflow-wrap: anywhere; }
+.sprite-choice strong:last-child { grid-row: 1 / -1; align-self: center; }
+.sprite-choice small { grid-column: 2; color: var(--muted); font-size: 11px; }
+.sprite-surprise .sprite-choice-preview img { width: 23px; margin-inline: -6px; }
 .living-profile :is(.plant-record,.terrarium-record) { overflow: hidden; border: 1px solid var(--line); border-radius: 20px; background: var(--reference-surface); box-shadow: 0 16px 40px #07110a24; }
 .living-profile :is(.plant-record,.terrarium-record) .detail-tabs { margin: 0; padding: 10px 20px; border-bottom: 1px solid var(--line); }
 .living-profile :is(.plant-record,.terrarium-record) .refresh-note { margin: 20px 32px 0; }
@@ -234,6 +253,9 @@ button:disabled { transform: none; }
   .compare-controls > span { text-align: center; }
 }
 @media (max-width:620px) {
+  .sprite-picker { padding: 14px; }
+  .sprite-picker-heading { align-items: flex-start; flex-direction: column; gap: 4px; }
+  .sprite-picker-heading small { text-align: left; }
   .home-create-actions .button { font-size:14px; padding:10px 14px; }
   .terrarium-profile .resident-list a { grid-template-columns:56px 32px minmax(0,1fr) 16px; gap:8px; padding:12px; }
   .terrarium-profile .resident-thumb { width:56px; height:56px; }

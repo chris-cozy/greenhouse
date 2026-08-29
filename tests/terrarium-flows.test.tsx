@@ -7,12 +7,12 @@ import { api } from "../src/api";
 import { TerrariumForm } from "../src/components/TerrariumForm";
 import { TerrariumDetailPage, TerrariumsPage } from "../src/components/Terrariums";
 import { HistoryForm } from "../src/components/PlantForms";
-import { getPlantIcon } from "../src/shared/plantIcons";
+import { getPlantIcon, getTerrariumIcon } from "../src/shared/plantIcons";
 import type { Plant, Terrarium } from "../src/shared/types";
 
 vi.mock("../src/api",()=>({api:{get:vi.fn(),post:vi.fn(),put:vi.fn(),upload:vi.fn(),delete:vi.fn()}}));
-const resident:Plant={id:"fern",name:"A tiny fern",speciesId:null,speciesCommonName:"Maidenhair fern",speciesScientificName:"",description:"",dateAcquired:"",source:"",location:"",terrariumId:"cloud",terrariumName:"Cloud Forest",status:"healthy",profilePhotoId:"leaf",profilePhotoUrl:"/media/leaf.jpg",archivedAt:null,dateOfDeath:"",causeOfDeath:"",finalNotes:"",tags:[],updatedAt:"2026-08-28",createdAt:"2026-08-28"};
-const terrarium:Terrarium={id:"cloud",name:"Cloud Forest",description:"A quiet little world",dateCreated:"2024-02-03",type:"Closed tropical",location:"North shelf",lightingSetup:"Grow light, 10 hours",humidityRequirements:"70–90%",wateringNotes:"Mist as needed",substrateInformation:"Gravel, charcoal, soil",notes:"Rotate weekly",otherInhabitants:"Springtails",coverPhotoId:"first",coverPhotoUrl:"/media/first.jpg",plantCount:1,plants:[resident],photos:["first","second"].map(id=>({id,plantId:null,terrariumId:"cloud",url:`/media/${id}.jpg`,originalName:`${id}.jpg`,mimeType:"image/jpeg",sizeBytes:100,dateTaken:"2026-08-28",caption:id,tags:[],createdAt:"2026-08-28"})),history:[{id:"journal-one",kind:"journal",date:"2026-08-28",title:"A quiet morning",detail:"The moss is growing",journalId:"journal-one"}],createdAt:"2024-02-03",updatedAt:"2026-08-28"};
+const resident:Plant={id:"fern",name:"A tiny fern",spriteImage:"/images/plant-spirit-moss-standing.png",speciesId:null,speciesCommonName:"Maidenhair fern",speciesScientificName:"",description:"",dateAcquired:"",source:"",location:"",terrariumId:"cloud",terrariumName:"Cloud Forest",status:"healthy",profilePhotoId:"leaf",profilePhotoUrl:"/media/leaf.jpg",archivedAt:null,dateOfDeath:"",causeOfDeath:"",finalNotes:"",tags:[],updatedAt:"2026-08-28",createdAt:"2026-08-28"};
+const terrarium:Terrarium={id:"cloud",name:"Cloud Forest",spriteImage:"/images/plant-spirit-moss-terrarium.png",description:"A quiet little world",dateCreated:"2024-02-03",type:"Closed tropical",location:"North shelf",lightingSetup:"Grow light, 10 hours",humidityRequirements:"70–90%",wateringNotes:"Mist as needed",substrateInformation:"Gravel, charcoal, soil",notes:"Rotate weekly",otherInhabitants:"Springtails",coverPhotoId:"first",coverPhotoUrl:"/media/first.jpg",plantCount:1,plants:[resident],photos:["first","second"].map(id=>({id,plantId:null,terrariumId:"cloud",url:`/media/${id}.jpg`,originalName:`${id}.jpg`,mimeType:"image/jpeg",sizeBytes:100,dateTaken:"2026-08-28",caption:id,tags:[],createdAt:"2026-08-28"})),history:[{id:"journal-one",kind:"journal",date:"2026-08-28",title:"A quiet morning",detail:"The moss is growing",journalId:"journal-one"}],createdAt:"2024-02-03",updatedAt:"2026-08-28"};
 let root:Root,host:HTMLDivElement;
 beforeEach(()=>{(globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;vi.clearAllMocks();host=document.createElement("div");document.body.append(host);root=createRoot(host)});
 afterEach(async()=>{await act(async()=>root.unmount());host.remove();vi.useRealTimers()});
@@ -21,6 +21,7 @@ const input=(label:string)=>Array.from(host.querySelectorAll('label')).find(node
 async function fill(label:string,value:string){await act(async()=>{const field=input(label),proto=field instanceof HTMLTextAreaElement?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(proto,'value')!.set!.call(field,value);field.dispatchEvent(new Event('input',{bubbles:true}))})}
 async function submit(){await act(async()=>host.querySelector('form')!.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})))}
 const mount=(element:React.ReactNode)=>act(async()=>root.render(<StrictMode>{element}</StrictMode>));
+async function chooseSprite(label:string){const choice=Array.from(host.querySelectorAll<HTMLLabelElement>('.sprite-choice')).find(node=>node.querySelector('strong')?.textContent===label)!;await act(async()=>choice.querySelector<HTMLInputElement>('input')!.click())}
 async function profile(welcome?:string,onWelcomeShown=vi.fn()){
   vi.mocked(api.get).mockResolvedValue(terrarium);
   await mount(<MemoryRouter initialEntries={['/terrariums/cloud']}><Routes><Route path='/terrariums/:id' element={<TerrariumDetailPage refreshOptions={()=>{}} welcomeTerrariumId={welcome} onWelcomeShown={onWelcomeShown}/>}/></Routes></MemoryRouter>);
@@ -32,8 +33,14 @@ describe("terrarium creation and editing",()=>{
     await mount(<TerrariumForm onClose={()=>{}} onSaved={saved}/>);
     expect(host.querySelector('details')!.open).toBe(false);expect(document.activeElement).toBe(input('Personal name'));
     await fill('Personal name','  Cloud Forest  ');await submit();
-    expect(api.post).toHaveBeenCalledWith('/api/terrariums',{name:'Cloud Forest',description:'',dateCreated:'',type:'',location:'',lightingSetup:'',humidityRequirements:'',wateringNotes:'',substrateInformation:'',notes:'',otherInhabitants:''});
+    expect(host.querySelector<HTMLInputElement>('.sprite-surprise input')?.checked).toBe(true);
+    expect(api.post).toHaveBeenCalledWith('/api/terrariums',{name:'Cloud Forest',spriteImage:'',description:'',dateCreated:'',type:'',location:'',lightingSetup:'',humidityRequirements:'',wateringNotes:'',substrateInformation:'',notes:'',otherInhabitants:''});
     expect(saved).toHaveBeenCalledOnce();expect(api.upload).not.toHaveBeenCalled();
+  });
+  it("lets a sprite be selected while creating a terrarium",async()=>{
+    vi.mocked(api.post).mockResolvedValue(terrarium);await mount(<TerrariumForm onClose={()=>{}} onSaved={()=>{}}/>);
+    await chooseSprite('Moss terrarium');await fill('Personal name','Cloud Forest');await submit();
+    expect(api.post).toHaveBeenCalledWith('/api/terrariums',expect.objectContaining({spriteImage:'/images/plant-spirit-moss-terrarium.png'}));
   });
   it("includes optional habitat details when expanded",async()=>{
     vi.mocked(api.post).mockResolvedValue(terrarium);await mount(<TerrariumForm onClose={()=>{}} onSaved={()=>{}}/>);
@@ -52,9 +59,9 @@ describe("terrarium creation and editing",()=>{
   });
   it("fully expands editing and preserves every habitat field and selected cover",async()=>{
     vi.mocked(api.put).mockResolvedValue(terrarium);await mount(<TerrariumForm item={terrarium} onClose={()=>{}} onSaved={()=>{}}/>);
-    expect(host.querySelector('details')).toBeNull();expect(input('Other notes').value).toBe('Rotate weekly');expect(input('Watering / misting').value).toBe('Mist as needed');
-    await fill('Personal name','Little Cloud');await submit();
-    expect(api.put).toHaveBeenCalledWith('/api/terrariums/cloud',{...terrarium,name:'Little Cloud'});
+    expect(host.querySelector('details')).toBeNull();expect(input('Other notes').value).toBe('Rotate weekly');expect(input('Watering / misting').value).toBe('Mist as needed');expect(host.querySelector<HTMLInputElement>(`input[value="${terrarium.spriteImage}"]`)?.checked).toBe(true);
+    await chooseSprite('Leafy terrarium');await fill('Personal name','Little Cloud');await submit();
+    expect(api.put).toHaveBeenCalledWith('/api/terrariums/cloud',{...terrarium,name:'Little Cloud',spriteImage:'/images/plant-spirit-terrarium.png'});
   });
   it("restores focus and resets the draft only after the closing presence completes",async()=>{
     vi.useFakeTimers();function Harness(){const [open,setOpen]=useState(false);return <><button onClick={()=>setOpen(true)}>Add terrarium</button><TerrariumForm open={open} onClose={()=>setOpen(false)} onSaved={()=>{}}/></>}
@@ -74,12 +81,12 @@ describe("terrarium updates and profiles",()=>{
   });
   it("preserves photography, journal links, resident identities, and all habitat notes",async()=>{
     await profile();const metadata=host.querySelector('.hero-meta')?.textContent;
-    expect(host.querySelector('.terrarium-summary-shell > .terrarium-summary-card.detail-hero')?.getAttribute('style')).toContain('/media/first.jpg');expect(host.querySelector('.spirit-profile img')?.getAttribute('src')).toBe('/images/plant-spirit-terrarium.png');
+    expect(host.querySelector('.terrarium-summary-shell > .terrarium-summary-card.detail-hero')?.getAttribute('style')).toContain('/media/first.jpg');expect(host.querySelector('.spirit-profile img')?.getAttribute('src')).toBe(getTerrariumIcon('cloud',terrarium.spriteImage));
     expect(host.querySelector('.profile-identity .spirit-motion-idle.spirit-profile-terrarium')).not.toBeNull();expect(metadata).toContain('North shelf');expect(metadata).toContain('Created Feb 3, 2024');expect(metadata).toContain('1 living plant');expect(metadata).toContain('2 photos');
     expect(host.querySelector('.profile-summary-toolbar .profile-summary-edit')?.textContent).toContain('Edit');expect(host.querySelector('.profile-action-bar')).toBeNull();
     expect(host.querySelector('#terrarium-panel-story .section-heading .button.primary')?.textContent).toContain('Add update');expect(host.querySelector('.detail-hero')?.textContent).not.toContain('Add update');
     expect(host.querySelector('.terrarium-record [role="tablist"]')).not.toBeNull();expect(host.querySelector('.story-aside .fact-card')).toBeNull();expect(host.textContent).not.toContain('At a glance');
-    expect(host.querySelector('.timeline a')?.getAttribute('href')).toBe('/journal/journal-one');expect(host.querySelector('.resident-list .spirit img')?.getAttribute('src')).toBe(getPlantIcon('fern'));
+    expect(host.querySelector('.timeline a')?.getAttribute('href')).toBe('/journal/journal-one');expect(host.querySelector('.resident-list .spirit img')?.getAttribute('src')).toBe(getPlantIcon('fern',resident.spriteImage));
     expect(host.querySelector('.resident-thumb')?.getAttribute('style')).toContain('/media/leaf.jpg');
     await act(async()=>button('Environment').click());expect(host.querySelector('#terrarium-panel-environment')?.textContent).toContain('Gravel, charcoal, soil');expect(host.querySelector('#terrarium-panel-environment')?.textContent).toContain('Springtails');
     expect(host.querySelector('.spirit-motion-settle')).toBeNull();expect(host.querySelector('.save-feedback')?.textContent).toBe('');
@@ -112,6 +119,6 @@ describe("terrarium updates and profiles",()=>{
   });
   it("uses the same shared creation trigger in the collection and retains photo covers",async()=>{
     const add=vi.fn();vi.mocked(api.get).mockResolvedValue([terrarium]);await mount(<MemoryRouter><TerrariumsPage onAddTerrarium={add}/></MemoryRouter>);
-    expect(host.querySelector('.terrarium-photo')?.getAttribute('style')).toContain('/media/first.jpg');expect(host.querySelector('.card-body .spirit img')?.getAttribute('src')).toBe('/images/plant-spirit-terrarium.png');await act(async()=>button('Add terrarium').click());expect(add).toHaveBeenCalledOnce();
+    expect(host.querySelector('.terrarium-photo')?.getAttribute('style')).toContain('/media/first.jpg');expect(host.querySelector('.card-body .spirit img')?.getAttribute('src')).toBe(getTerrariumIcon('cloud',terrarium.spriteImage));await act(async()=>button('Add terrarium').click());expect(add).toHaveBeenCalledOnce();
   });
 });

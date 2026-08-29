@@ -13,7 +13,7 @@ import { initializeAppearance, setForestAesthetic } from "../src/appearance";
 
 vi.mock("../src/api",()=>({api:{get:vi.fn(),post:vi.fn(),put:vi.fn(),upload:vi.fn(),delete:vi.fn()}}));
 const options={species:[],terrariums:[],tags:[]};
-const plant:Plant={id:"fern",name:"Fern",speciesId:null,speciesCommonName:"",speciesScientificName:"",description:"An old friend",dateAcquired:"2024-02-03",source:"Plant swap",location:"Window",terrariumId:null,terrariumName:"",status:"healthy",profilePhotoId:"first",profilePhotoUrl:"/media/first.jpg",archivedAt:null,dateOfDeath:"",causeOfDeath:"",finalNotes:"",tags:["favorite"],updatedAt:"2026-08-28T12:00:00Z",createdAt:"2024-02-03T12:00:00Z",history:[],photos:["first","second"].map(id=>({id,plantId:"fern",terrariumId:null,url:`/media/${id}.jpg`,originalName:`${id}.jpg`,mimeType:"image/jpeg",sizeBytes:100,dateTaken:"2026-08-28",caption:id,tags:[],createdAt:"2026-08-28T12:00:00Z"})),careItems:[]};
+const plant:Plant={id:"fern",name:"Fern",spriteImage:"/images/plant-spirit-moss-seated.png",speciesId:null,speciesCommonName:"",speciesScientificName:"",description:"An old friend",dateAcquired:"2024-02-03",source:"Plant swap",location:"Window",terrariumId:null,terrariumName:"",status:"healthy",profilePhotoId:"first",profilePhotoUrl:"/media/first.jpg",archivedAt:null,dateOfDeath:"",causeOfDeath:"",finalNotes:"",tags:["favorite"],updatedAt:"2026-08-28T12:00:00Z",createdAt:"2024-02-03T12:00:00Z",history:[],photos:["first","second"].map(id=>({id,plantId:"fern",terrariumId:null,url:`/media/${id}.jpg`,originalName:`${id}.jpg`,mimeType:"image/jpeg",sizeBytes:100,dateTaken:"2026-08-28",caption:id,tags:[],createdAt:"2026-08-28T12:00:00Z"})),careItems:[]};
 let root:Root,host:HTMLDivElement;
 beforeEach(()=>{(globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;vi.clearAllMocks();host=document.createElement("div");document.body.append(host);root=createRoot(host)});
 afterEach(async()=>{await act(async()=>root.unmount());host.remove();vi.useRealTimers()});
@@ -22,6 +22,7 @@ const input=(label:string)=>Array.from(host.querySelectorAll('label')).find(node
 async function fill(label:string,value:string){await act(async()=>{const field=input(label),proto=field instanceof HTMLTextAreaElement?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(proto,'value')!.set!.call(field,value);field.dispatchEvent(new Event('input',{bubbles:true}))})}
 async function submit(){await act(async()=>host.querySelector('form')!.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})))}
 const mount=(element:React.ReactNode)=>act(async()=>root.render(<StrictMode>{element}</StrictMode>));
+async function chooseSprite(label:string){const choice=Array.from(host.querySelectorAll<HTMLLabelElement>('.sprite-choice')).find(node=>node.querySelector('strong')?.textContent===label)!;await act(async()=>choice.querySelector<HTMLInputElement>('input')!.click())}
 
 describe("plant creation and editing",()=>{
   it("creates from a name alone with optional details collapsed",async()=>{
@@ -29,8 +30,14 @@ describe("plant creation and editing",()=>{
     await mount(<PlantForm options={options} onClose={()=>{}} onSaved={saved}/>);
     expect(host.querySelector('details')!.open).toBe(false);expect(input('Personal name')).toBe(document.activeElement);
     await fill('Personal name','  Fern  ');await submit();
-    expect(api.post).toHaveBeenCalledWith('/api/plants',expect.objectContaining({name:'Fern',status:'healthy',speciesId:null,terrariumId:null,tags:[]}));
+    expect(host.querySelector<HTMLInputElement>('.sprite-surprise input')?.checked).toBe(true);
+    expect(api.post).toHaveBeenCalledWith('/api/plants',expect.objectContaining({name:'Fern',spriteImage:'',status:'healthy',speciesId:null,terrariumId:null,tags:[]}));
     expect(saved).toHaveBeenCalledOnce();expect(api.upload).not.toHaveBeenCalled();
+  });
+  it("lets a sprite be selected while creating a plant",async()=>{
+    vi.mocked(api.post).mockResolvedValue(plant);await mount(<PlantForm options={options} onClose={()=>{}} onSaved={()=>{}}/>);
+    await chooseSprite('Moss · seated');await fill('Personal name','Fern');await submit();
+    expect(api.post).toHaveBeenCalledWith('/api/plants',expect.objectContaining({spriteImage:'/images/plant-spirit-moss-seated.png'}));
   });
   it("preserves values after failure and prevents duplicate writes before retry",async()=>{
     const saved=vi.fn();let reject!:(error:Error)=>void;vi.mocked(api.post).mockImplementationOnce(()=>new Promise((_resolve,no)=>{reject=no}));
@@ -50,9 +57,9 @@ describe("plant creation and editing",()=>{
   it("keeps every existing field, cover, and memorial detail when editing",async()=>{
     const memorial={...plant,status:'deceased' as const,dateOfDeath:'2025-01-03',causeOfDeath:'Cold',finalNotes:'Remembered'};
     vi.mocked(api.put).mockResolvedValue(memorial);await mount(<PlantForm plant={memorial} options={options} onClose={()=>{}} onSaved={()=>{}}/>);
-    expect(host.querySelector('details')).toBeNull();expect(input('Final notes').value).toBe('Remembered');
-    await fill('Personal name','Remembered fern');await submit();
-    expect(api.put).toHaveBeenCalledWith('/api/plants/fern',expect.objectContaining({name:'Remembered fern',source:'Plant swap',description:'An old friend',dateAcquired:'2024-02-03',profilePhotoId:'first',tags:['favorite'],status:'deceased',dateOfDeath:'2025-01-03',causeOfDeath:'Cold',finalNotes:'Remembered'}));
+    expect(host.querySelector('details')).toBeNull();expect(input('Final notes').value).toBe('Remembered');expect(host.querySelector<HTMLInputElement>(`input[value="${plant.spriteImage}"]`)?.checked).toBe(true);
+    await chooseSprite('Succulent · resting');await fill('Personal name','Remembered fern');await submit();
+    expect(api.put).toHaveBeenCalledWith('/api/plants/fern',expect.objectContaining({name:'Remembered fern',spriteImage:'/images/plant-spirit-succulent-resting.png',source:'Plant swap',description:'An old friend',dateAcquired:'2024-02-03',profilePhotoId:'first',tags:['favorite'],status:'deceased',dateOfDeath:'2025-01-03',causeOfDeath:'Cold',finalNotes:'Remembered'}));
   });
   it("retains the draft through exit and resets after closing",async()=>{
     vi.useFakeTimers();function Harness(){const [open,setOpen]=useState(true);return <><button onClick={()=>setOpen(true)}>Reopen</button><PlantForm open={open} options={options} onClose={()=>setOpen(false)} onSaved={()=>{}}/></>}
@@ -106,7 +113,7 @@ describe("profile feedback and refresh",()=>{
     } finally {stop();localStorage.removeItem('greenhouse-forest-aesthetic');document.documentElement.removeAttribute('data-forest-aesthetic')}
   });
   it("does not celebrate routine visits and uses the same plant spirit",async()=>{
-    await profile();expect(host.querySelector('.spirit-profile img')?.getAttribute('src')).toBe(getPlantIcon('fern'));expect(host.querySelector('.spirit-motion-idle')).not.toBeNull();expect(host.querySelector('.spirit-motion-settle')).toBeNull();expect(host.querySelector('.save-feedback')?.textContent).toBe('');
+    await profile();expect(host.querySelector('.spirit-profile img')?.getAttribute('src')).toBe(getPlantIcon('fern',plant.spriteImage));expect(host.querySelector('.spirit-motion-idle')).not.toBeNull();expect(host.querySelector('.spirit-motion-settle')).toBeNull();expect(host.querySelector('.save-feedback')?.textContent).toBe('');
   });
   it("consolidates metadata and places profile actions at their point of use",async()=>{
     await profile();const metadata=host.querySelector('.hero-meta')?.textContent;

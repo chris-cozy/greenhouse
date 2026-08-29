@@ -42,7 +42,7 @@ export function GlobalSearch({ open, onClose, options }: { open: boolean; onClos
       {error && <div className="command-error"><ErrorNote message={error}/><button className="button ghost" onClick={() => setRetry(n => n + 1)}>Retry search</button></div>}
       <div ref={list} className="search-results" id={resultId} role="listbox" aria-label="Search results">
         {results.map((result, index) => <div role="option" aria-selected={active === index} id={`${resultId}-${index}`} key={`${result.type}-${result.id}`} onMouseDown={e => e.preventDefault()} onClick={() => select(result)}>
-          {result.type === "plant" || result.type === "terrarium" ? <Spirit id={result.id} kind={result.type}/> : <span className="search-result-icon">{result.type === "species" ? <Flower2/> : <BookOpenText/>}</span>}
+          {result.type === "plant" || result.type === "terrarium" ? <Spirit id={result.id} spriteImage={result.spriteImage} kind={result.type}/> : <span className="search-result-icon">{result.type === "species" ? <Flower2/> : <BookOpenText/>}</span>}
           <span><strong>{result.title}</strong><small>{result.type} · {result.subtitle}</small></span>
         </div>)}
       </div>

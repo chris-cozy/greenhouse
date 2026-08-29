@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { getPlantIcon } from "../shared/plantIcons";
+import { getPlantIcon, getTerrariumIcon } from "../shared/plantIcons";
 
 export type SpiritMotion = "still" | "idle" | "settle";
 type SpiritPose = "standing" | "seated" | "resting" | "terrarium";
@@ -15,10 +15,10 @@ function poseFor(src: string): SpiritPose {
   return "standing";
 }
 
-export function Spirit({ id, kind = "plant", size = "small", motion = "still" }: {
-  id: string; kind?: "plant" | "terrarium"; size?: "small" | "garden" | "profile" | "empty"; motion?: SpiritMotion;
+export function Spirit({ id, spriteImage, kind = "plant", size = "small", motion = "still" }: {
+  id: string; spriteImage?: string | null; kind?: "plant" | "terrarium"; size?: "small" | "garden" | "profile" | "empty"; motion?: SpiritMotion;
 }) {
-  const src = kind === "plant" ? getPlantIcon(id) : "/images/plant-spirit-terrarium.png";
+  const src = kind === "plant" ? getPlantIcon(id, spriteImage) : getTerrariumIcon(id, spriteImage);
   const hash = visualHash(id), pose = kind === "plant" ? poseFor(src) : "terrarium";
   const profile = pose === "standing" ? "sway" : pose === "seated" ? "nod" : pose === "resting" ? "breathe" : "terrarium";
   const style = {

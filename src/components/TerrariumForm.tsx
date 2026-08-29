@@ -4,8 +4,9 @@ import type { Terrarium } from "../shared/types";
 import { ErrorNote, Field, FormActions, Modal } from "./Common";
 import { CoverPhotoPicker } from "./CoverPhoto";
 import { useMutation } from "./Interaction";
+import { SpritePicker } from "./SpritePicker";
 
-const blankTerrarium = { name: "", description: "", dateCreated: "", type: "", location: "", lightingSetup: "", humidityRequirements: "", wateringNotes: "", substrateInformation: "", notes: "", otherInhabitants: "" };
+const blankTerrarium = { name: "", spriteImage: "", description: "", dateCreated: "", type: "", location: "", lightingSetup: "", humidityRequirements: "", wateringNotes: "", substrateInformation: "", notes: "", otherInhabitants: "" };
 
 export function TerrariumForm({ item, open = true, onClose, onSaved, onCoverSaved }: {
   item?: Terrarium; open?: boolean; onClose: () => void; onSaved: (terrarium: Terrarium) => void; onCoverSaved?: () => void;
@@ -40,6 +41,7 @@ export function TerrariumForm({ item, open = true, onClose, onSaved, onCoverSave
     <form className="form-grid scroll-form terrarium-form" onSubmit={submit}>
       <fieldset className="form-fields" disabled={mutation.busy}>
         <Field label="Personal name" wide={!item}><input autoFocus required value={value.name} onChange={e => set("name", e.target.value)} placeholder="e.g. Cloud Forest"/></Field>
+        <SpritePicker kind="terrarium" value={value.spriteImage} allowRandom={!item} onChange={next => set("spriteImage", next)}/>
         {item && onCoverSaved && <section className="edit-cover-field field-wide" role="group" aria-labelledby={`terrarium-cover-heading-${item.id}`}>
           <div className="edit-cover-heading"><span id={`terrarium-cover-heading-${item.id}`}>Cover photo</span><small>Choose which habitat photo represents this terrarium across the greenhouse.</small></div>
           <CoverPhotoPicker kind="terrarium" id={item.id} photos={item.photos || []} currentId={item.coverPhotoId} embedded onSaved={onCoverSaved}/>

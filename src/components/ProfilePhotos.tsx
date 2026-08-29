@@ -8,8 +8,8 @@ import { Spirit } from "./Spirit";
 export type ProfileMoment = { kind: "event" | "photo"; id: string };
 export type ProfileSaved = (message: string, moment?: ProfileMoment) => void;
 
-export function ProfilePhotos({ kind, id, photos, coverPhotoId, onSaved, newMoment, onMomentShown, adding: controlledAdding, onAddingChange }: {
-  kind: "plant" | "terrarium"; id: string; photos: Photo[]; coverPhotoId: string | null;
+export function ProfilePhotos({ kind, id, spriteImage, photos, coverPhotoId, onSaved, newMoment, onMomentShown, adding: controlledAdding, onAddingChange }: {
+  kind: "plant" | "terrarium"; id: string; spriteImage?: string; photos: Photo[]; coverPhotoId: string | null;
   onSaved: ProfileSaved; newMoment: ProfileMoment | null; onMomentShown: () => void;
   adding?: boolean; onAddingChange?: (open: boolean) => void;
 }) {
@@ -34,7 +34,7 @@ export function ProfilePhotos({ kind, id, photos, coverPhotoId, onSaved, newMome
       <img src={photo.url} alt={photo.caption || (kind === "plant" ? "Plant progress" : "Habitat progress")}/><figcaption><div><strong>{shortDate(photo.dateTaken || photo.createdAt)}</strong><span>{photo.caption || "A moment in its story."}</span></div>
         {coverPhotoId !== photo.id ? <MakeCoverButton kind={kind} id={id} photoId={photo.id} onSaved={() => onSaved("Cover photo updated.")}/> : <span className="cover-label">Cover</span>}
       </figcaption>
-    </figure>)}</div> : <EmptyState icon={<Spirit id={id} kind={kind} size="empty"/>} title={kind === "plant" ? "No progress photos yet" : "No habitat photos yet"} copy="A single photo is enough to begin a visual history." action={<button className="button primary" onClick={() => setAdding(true)}>Add a photo</button>}/>}
+    </figure>)}</div> : <EmptyState icon={<Spirit id={id} spriteImage={spriteImage} kind={kind} size="empty"/>} title={kind === "plant" ? "No progress photos yet" : "No habitat photos yet"} copy="A single photo is enough to begin a visual history." action={<button className="button primary" onClick={() => setAdding(true)}>Add a photo</button>}/>}
     <Modal open={adding} busy={uploadBusy} title={kind === "plant" ? "Add a progress photo" : "Add a habitat photo"} onClose={close}>
       <PhotoUpload {...(kind === "plant" ? { plantId: id } : { terrariumId: id })} onBusyChange={setUploadBusy} onDone={photo => {
         setAdding(false); onSaved("Photo added to your growing story.", { kind: "photo", id: photo.id });

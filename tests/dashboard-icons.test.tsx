@@ -10,20 +10,22 @@ import { Modal } from "../src/components/Common";
 import type { GardenViewState } from "../src/components/Garden";
 import { Dashboard, Garden } from "../src/components/Dashboard";
 import { Spirit } from "../src/components/Spirit";
-import { getPlantIcon, PLANT_ICON_IMAGES } from "../src/shared/plantIcons";
+import { getPlantIcon, getTerrariumIcon, PLANT_ICON_IMAGES, TERRARIUM_ICON_IMAGES } from "../src/shared/plantIcons";
 import type { DashboardData, Plant } from "../src/shared/types";
 import { initializeAppearance, setForestAesthetic } from "../src/appearance";
 
 const dashboard: DashboardData = {
   livingPlants: 32,
-  terrariums: 2,
+  terrariums: 3,
   gardenPlants: Array.from({ length: 32 }, (_, index) => ({
     id: `00000000-0000-4000-8000-${index.toString(16).padStart(12, "0")}`,
     name: `Plant ${index}`,
+    spriteImage: PLANT_ICON_IMAGES[index % PLANT_ICON_IMAGES.length],
   })),
   gardenTerrariums: [
-    { id: "terrarium-1", name: "Cloud Garden" },
-    { id: "terrarium-2", name: "Moss Bowl" },
+    { id: "terrarium-1", name: "Cloud Garden", spriteImage: TERRARIUM_ICON_IMAGES[0] },
+    { id: "terrarium-3", name: "Moss Bowl", spriteImage: TERRARIUM_ICON_IMAGES[1] },
+    { id: "terrarium-0", name: "Fern Bottle", spriteImage: TERRARIUM_ICON_IMAGES[2] },
   ],
   attentionPlants: [],
   recentlyUpdated: [],
@@ -68,7 +70,7 @@ describe("dashboard collection icons", () => {
       const plant = dashboard.gardenPlants[index];
       expect(link.getAttribute("href")).toBe(`/plants/${plant.id}`);
       expect(link.getAttribute("aria-label")).toBe(`Open plant ${plant.name}`);
-      expect(link.querySelector("img")?.getAttribute("src")).toBe(getPlantIcon(plant.id));
+      expect(link.querySelector("img")?.getAttribute("src")).toBe(getPlantIcon(plant.id, plant.spriteImage));
       expect(link.querySelector("img")?.className).toBe("garden-plant-icon");
     });
     expect(new Set(plants.map(link => link.querySelector("img")?.getAttribute("src"))))
@@ -79,8 +81,10 @@ describe("dashboard collection icons", () => {
       const terrarium = dashboard.gardenTerrariums[index];
       expect(link.getAttribute("href")).toBe(`/terrariums/${terrarium.id}`);
       expect(link.getAttribute("aria-label")).toBe(`Open terrarium ${terrarium.name}`);
-      expect(link.querySelector("img")?.getAttribute("src")).toBe("/images/plant-spirit-terrarium.png");
+      expect(link.querySelector("img")?.getAttribute("src")).toBe(getTerrariumIcon(terrarium.id, terrarium.spriteImage));
     });
+    expect(new Set(terrariums.map(link => link.querySelector("img")?.getAttribute("src"))))
+      .toEqual(new Set(TERRARIUM_ICON_IMAGES));
   });
 
   it("ships the replacement terrarium as a transparent PNG", () => {
@@ -100,12 +104,12 @@ describe("dashboard collection icons", () => {
   });
   it("adds each plant companion to its growing story card",()=>{
     const recent=dashboard.recentlyUpdated;
-    const plant=(id:string,profilePhotoUrl:string|null):Plant=>({id,name:`Story ${id}`,speciesId:null,speciesCommonName:"Fern",speciesScientificName:"",description:"",dateAcquired:"",source:"",location:"Window",terrariumId:null,terrariumName:null,status:"healthy",profilePhotoId:null,profilePhotoUrl,archivedAt:null,dateOfDeath:"",causeOfDeath:"",finalNotes:"",tags:[],updatedAt:"2026-08-29",createdAt:"2026-08-29"});
+    const plant=(id:string,profilePhotoUrl:string|null):Plant=>({id,name:`Story ${id}`,spriteImage:"/images/plant-spirit-moss-seated.png",speciesId:null,speciesCommonName:"Fern",speciesScientificName:"",description:"",dateAcquired:"",source:"",location:"Window",terrariumId:null,terrariumName:null,status:"healthy",profilePhotoId:null,profilePhotoUrl,archivedAt:null,dateOfDeath:"",causeOfDeath:"",finalNotes:"",tags:[],updatedAt:"2026-08-29",createdAt:"2026-08-29"});
     dashboard.recentlyUpdated=[plant("fern",null),plant("moss","/media/moss.jpg")];
     try {
       const html=renderToStaticMarkup(<MemoryRouter><Dashboard onAddPlant={()=>{}}/></MemoryRouter>),document=new DOMParser().parseFromString(html,"text/html");
       const cards=Array.from(document.querySelectorAll('.plant-card'));
-      expect(cards).toHaveLength(2);cards.forEach((card,index)=>{const item=dashboard.recentlyUpdated[index],name=card.querySelector('.story-card-name'),spirit=name?.querySelector('.story-card-spirit .spirit');expect(name?.querySelector('h3')?.textContent).toBe(item.name);expect(spirit).not.toBeNull();expect(spirit?.classList).toContain('spirit-small');expect(spirit?.classList).toContain('spirit-motion-still');expect(spirit?.querySelector('img')?.getAttribute('src')).toBe(getPlantIcon(item.id));});
+      expect(cards).toHaveLength(2);cards.forEach((card,index)=>{const item=dashboard.recentlyUpdated[index],name=card.querySelector('.story-card-name'),spirit=name?.querySelector('.story-card-spirit .spirit');expect(name?.querySelector('h3')?.textContent).toBe(item.name);expect(spirit).not.toBeNull();expect(spirit?.classList).toContain('spirit-small');expect(spirit?.classList).toContain('spirit-motion-still');expect(spirit?.querySelector('img')?.getAttribute('src')).toBe(getPlantIcon(item.id,item.spriteImage));});
       expect(document.querySelector('.placeholder-leaf')).toBeNull();
     } finally {dashboard.recentlyUpdated=recent;}
   });

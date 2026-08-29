@@ -23,7 +23,7 @@ export function TerrariumsPage({ onAddTerrarium }: { onAddTerrarium: () => void 
       <div className="card-photo terrarium-photo" style={item.coverPhotoUrl ? { backgroundImage: `url(${item.coverPhotoUrl})` } : undefined}>
         {!item.coverPhotoUrl && <div className="glass-shape"><Sprout/></div>}
       </div>
-      <div className="card-body"><div><Spirit id={item.id} kind="terrarium"/><div className="plant-name-copy"><h2>{item.name}</h2><em>{item.type || "Living habitat"}</em></div></div>
+      <div className="card-body"><div><Spirit id={item.id} spriteImage={item.spriteImage} kind="terrarium"/><div className="plant-name-copy"><h2>{item.name}</h2><em>{item.type || "Living habitat"}</em></div></div>
         <p>{item.description || "A growing miniature world."}</p>
         <footer><span><Leaf/> {item.plantCount} {item.plantCount === 1 ? "plant" : "plants"}</span><span><MapPin/> {item.location || "Location not set"}</span></footer>
       </div>
@@ -77,7 +77,7 @@ function TerrariumDetail({ id, refreshOptions, welcomeTerrariumId, onWelcomeShow
         <div className="profile-summary-toolbar"><button className="back-link" onClick={() => navigate("/terrariums")}><ArrowLeft/> Terrariums</button>
           <button className="button ghost profile-summary-edit" onClick={() => setEditing(true)}><Edit3/> Edit</button>
         </div>
-        <div className="hero-copy"><div className="profile-identity"><Spirit key={feedback?.sequence || 0} id={item.id} kind="terrarium" size="profile" motion={settling ? "settle" : "idle"}/><div>
+        <div className="hero-copy"><div className="profile-identity"><Spirit key={feedback?.sequence || 0} id={item.id} spriteImage={item.spriteImage} kind="terrarium" size="profile" motion={settling ? "settle" : "idle"}/><div>
           <span className="eyebrow">{item.type || "Living habitat"}</span><h1>{item.name}</h1>
         </div></div><p>{item.description || "This little world’s story is just beginning."}</p>
           <div className="hero-meta"><span><MapPin/> {item.location || "Location not set"}</span>{item.dateCreated && <span><CalendarDays/> Created {shortDate(item.dateCreated)}</span>}<span><Leaf/> {item.plantCount} living {item.plantCount === 1 ? "plant" : "plants"}</span><span><Camera/> {photoCount} {photoCount === 1 ? "photo" : "photos"}</span></div>
@@ -97,15 +97,15 @@ function TerrariumDetail({ id, refreshOptions, welcomeTerrariumId, onWelcomeShow
             <div><time>{shortDate(moment.date)}</time><h3>{moment.title}</h3><p>{moment.detail}</p>{moment.photoUrl && <img src={moment.photoUrl} alt={moment.detail || "Habitat progress"}/>}
               {moment.journalId && <Link to={`/journal/${moment.journalId}`}>Read journal entry <ChevronRight/></Link>}
             </div>
-          </article>)}</div> : <EmptyState icon={<Spirit id={id} kind="terrarium" size="empty"/>} title="Its story starts here" copy="Photos, linked journal entries, and little changes will gather into this habitat’s story."/>}
+          </article>)}</div> : <EmptyState icon={<Spirit id={id} spriteImage={item.spriteImage} kind="terrarium" size="empty"/>} title="Its story starts here" copy="Photos, linked journal entries, and little changes will gather into this habitat’s story."/>}
         </div></div></section>
         <section {...panel("residents")}><div className="section-heading"><div><span className="eyebrow">Residents</span><h2>Plants inside</h2></div><span>{item.plantCount} living here</span></div>
           {residents.length ? <div className="resident-list">{residents.map(plant => <Link to={`/plants/${plant.id}`} key={plant.id}>
             <div className="resident-thumb" style={plant.profilePhotoUrl ? { backgroundImage: `url(${plant.profilePhotoUrl})` } : undefined}>{!plant.profilePhotoUrl && <Leaf/>}</div>
-            <Spirit id={plant.id}/><div className="resident-name"><strong>{plant.name}</strong><span>{plant.speciesCommonName || "Unidentified plant"}</span></div><ChevronRight/>
-          </Link>)}</div> : <EmptyState icon={<Spirit id={id} kind="terrarium" size="empty"/>} title="No resident plants yet" copy="Edit a plant and choose this terrarium as its home."/>}
+            <Spirit id={plant.id} spriteImage={plant.spriteImage}/><div className="resident-name"><strong>{plant.name}</strong><span>{plant.speciesCommonName || "Unidentified plant"}</span></div><ChevronRight/>
+          </Link>)}</div> : <EmptyState icon={<Spirit id={id} spriteImage={item.spriteImage} kind="terrarium" size="empty"/>} title="No resident plants yet" copy="Edit a plant and choose this terrarium as its home."/>}
         </section>
-        <section {...panel("photos")}><ProfilePhotos kind="terrarium" id={id} photos={item.photos || []} coverPhotoId={item.coverPhotoId} onSaved={saved} newMoment={newMoment} onMomentShown={() => setNewMoment(null)} adding={addingPhoto} onAddingChange={setAddingPhoto}/></section>
+        <section {...panel("photos")}><ProfilePhotos kind="terrarium" id={id} spriteImage={item.spriteImage} photos={item.photos || []} coverPhotoId={item.coverPhotoId} onSaved={saved} newMoment={newMoment} onMomentShown={() => setNewMoment(null)} adding={addingPhoto} onAddingChange={setAddingPhoto}/></section>
         <section {...panel("environment")}><div className="about-grid"><article className="environment-card fact-card"><span className="eyebrow">Environment notes</span><dl>
           <div><dt>Lighting</dt><dd>{item.lightingSetup || "Not recorded"}</dd></div><div><dt>Humidity</dt><dd>{item.humidityRequirements || "Not recorded"}</dd></div>
           <div><dt>Watering & misting</dt><dd>{item.wateringNotes || "Not recorded"}</dd></div><div><dt>Substrate</dt><dd>{item.substrateInformation || "Not recorded"}</dd></div>
