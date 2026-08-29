@@ -20,7 +20,7 @@ export function PlantsPage({ options, onAddPlant }: { options: AppOptions; onAdd
   if (terrarium) params.set("terrariumId", terrarium); if (tag) params.set("tag", tag);
   const { data: plants, loading, error } = useLoad<Plant[]>(`/api/plants?${params}`);
   return <div className="content plant-collection living-collection">
-    <PageHeader eyebrow="Plant collection" title="The living archive" description="Browse the plants in your care, without turning care into paperwork."
+    <PageHeader eyebrow="Plant collection" title="The Living Archive" description="Browse the plants in your care, without turning care into paperwork."
       action={<button className="button primary" onClick={onAddPlant}><Plus/> Add plant</button>}/>
     <div className="collection-tools">
       <label className="inline-search"><Leaf/><input aria-label="Search plants" value={q} onChange={e => setQ(e.target.value)} placeholder="Search plants or locations…"/></label>

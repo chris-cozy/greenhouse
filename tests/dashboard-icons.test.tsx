@@ -42,7 +42,7 @@ describe("dashboard collection icons", () => {
     try {
       const html=renderToStaticMarkup(<MemoryRouter><Dashboard onAddPlant={()=>{}}/></MemoryRouter>);
       const document=new DOMParser().parseFromString(html,"text/html");
-      expect(document.querySelector("h1")?.textContent).toBe("Your greenhouse ♡");
+      expect(document.querySelector("h1")?.textContent).toBe("Your Greenhouse ♡");
       expect(document.querySelector(".welcome p")?.textContent).toBe("All of the plants under your care");
       expect(document.querySelector(".garden-card h2")?.textContent).toBe("All of the sprites in your garden");
       expect(document.querySelector(".summary-grid")?.nextElementSibling?.className).toBe("reminder-strip");
@@ -51,7 +51,7 @@ describe("dashboard collection icons", () => {
   it("retains the same heading and separate onboarding for an empty greenhouse",()=>{
     const plants=dashboard.gardenPlants,terrariums=dashboard.gardenTerrariums;
     dashboard.gardenPlants=[];dashboard.gardenTerrariums=[];
-    try {const html=renderToStaticMarkup(<MemoryRouter><Dashboard onAddPlant={()=>{}}/></MemoryRouter>);expect(html).toContain("Your greenhouse ♡");expect(html).toContain("Add your first plant");expect(html).not.toContain("reminder-strip");}
+    try {const html=renderToStaticMarkup(<MemoryRouter><Dashboard onAddPlant={()=>{}}/></MemoryRouter>);expect(html).toContain("Your Greenhouse ♡");expect(html).toContain("Add your first plant");expect(html).not.toContain("reminder-strip");}
     finally {dashboard.gardenPlants=plants;dashboard.gardenTerrariums=terrariums;}
   });
   it("keeps plant assignments and renders the new jar for every terrarium with its own link", () => {
@@ -185,6 +185,13 @@ describe("endless garden carousel",()=>{
     await click('Scroll garden right');await advance(160);const offset=track().scrollLeft;
     await act(async()=>{width=500;resize()});expect(track().scrollLeft).toBeCloseTo(offset);
     await act(async()=>{width=1200;resize()});expect(track().scrollLeft).toBe(0);expect(track().children).toHaveLength(6);
+  });
+  it("keeps only the carousel controls beside the collection heading",async()=>{
+    await showGarden(7);
+    const header=interactiveHost!.querySelector('.garden-card-header')!;
+    expect(header.querySelector('.garden-heading-row > .garden-playback')).not.toBeNull();
+    expect(header.querySelector('.garden-playback')?.previousElementSibling?.textContent).toBe('All of the sprites in your garden');
+    expect(interactiveHost!.querySelector('.garden-controls,.garden-links')).toBeNull();
   });
   it("keeps long names and wraps keyboard focus without remounting entries",async()=>{
     await showGarden(7);expect(links()[0].hasAttribute('title')).toBe(false);

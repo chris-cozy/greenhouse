@@ -76,7 +76,7 @@
 :root[data-forest-aesthetic="true"] .garden-scene::before { content:none; }
 :root[data-forest-aesthetic="true"] .garden-track { scrollbar-color:#b6d0a580 transparent; }
 :root[data-forest-aesthetic="true"] .garden-item-label { text-shadow:0 1px 5px #07130b; }
-:root[data-forest-aesthetic="true"] :is(.garden-links a,.garden-arrows button) { background:var(--panel2); }
+:root[data-forest-aesthetic="true"] .garden-arrows button { background:var(--panel2); }
 
 :root[data-forest-aesthetic="true"] :is(.living-collection .collection-tools select,.inline-search,.compare-controls select,.diary-search) {
   background:var(--input);

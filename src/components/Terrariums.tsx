@@ -17,7 +17,7 @@ export function TerrariumsPage({ onAddTerrarium }: { onAddTerrarium: () => void 
   const { data, loading, error } = useLoad<Terrarium[]>(`/api/terrariums?q=${encodeURIComponent(q)}`);
   const navigate = useNavigate();
   return <div className="content living-collection terrarium-collection">
-    <PageHeader eyebrow="Terrariums" title="Miniature ecosystems" description="See every habitat as a whole, and every plant living within it."
+    <PageHeader eyebrow="Terrariums" title="Miniature Ecosystems" description="See every habitat as a whole, and every plant living within it."
       action={<button className="button primary" onClick={onAddTerrarium}><Plus/> Add terrarium</button>}/>
     <div className="collection-tools"><label className="inline-search"><Sprout/><input aria-label="Search terrariums" value={q} onChange={e => setQ(e.target.value)} placeholder="Search terrariums…"/></label></div>
     {loading ? <Loading/> : error ? <ErrorNote message={error}/> : data?.length ? <div className="collection-grid terrarium-grid">{data.map(item => <button className="collection-card terrarium-card" key={item.id} onClick={() => navigate(`/terrariums/${item.id}`)}>

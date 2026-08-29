@@ -79,19 +79,21 @@ function Shell(){
     </aside>
     <main>
       <header className="topbar"><button className="search-trigger" onClick={()=>setSearch(true)}><Search size={17}/><span>Search your greenhouse…</span><kbd>Ctrl K</kbd></button><AttentionNotifications data={notifications}/></header>
-      <Suspense fallback={<Loading/>}><Routes>
-        <Route path="/" element={<Dashboard onAddPlant={()=>setCreatingPlant(true)} onAddTerrarium={()=>setCreatingTerrarium(true)} gardenState={gardenState.current} onGardenStateChange={state=>{gardenState.current=state}}/>}/>
-        <Route path="/plants" element={<PlantsPage options={current} onAddPlant={()=>setCreatingPlant(true)}/>}/>
-        <Route path="/plants/:id" element={<PlantDetailPage options={current} refreshOptions={refreshApp} welcomePlantId={welcomePlantId} onWelcomeShown={()=>setWelcomePlantId(null)}/>}/>
-        <Route path="/terrariums" element={<TerrariumsPage onAddTerrarium={()=>setCreatingTerrarium(true)}/>}/>
-        <Route path="/terrariums/:id" element={<TerrariumDetailPage refreshOptions={refreshApp} welcomeTerrariumId={welcomeTerrariumId} onWelcomeShown={()=>setWelcomeTerrariumId(null)}/>}/>
-        <Route path="/species" element={<SpeciesPage refreshOptions={refreshApp}/>}/>
-        <Route path="/species/:id" element={<SpeciesPage refreshOptions={refreshApp}/>}/>
-        <Route path="/journal" element={<JournalWorkspace options={current} refreshOptions={refreshApp}/>}/>
-        <Route path="/journal/:id" element={<JournalWorkspace options={current} refreshOptions={refreshApp}/>}/>
-        <Route path="/settings" element={<SettingsPage/>}/>
-        <Route path="*" element={<Navigate to="/" replace/>}/>
-      </Routes></Suspense>
+      <div className="page-scroll">
+        <Suspense fallback={<Loading/>}><Routes>
+          <Route path="/" element={<Dashboard onAddPlant={()=>setCreatingPlant(true)} onAddTerrarium={()=>setCreatingTerrarium(true)} gardenState={gardenState.current} onGardenStateChange={state=>{gardenState.current=state}}/>}/>
+          <Route path="/plants" element={<PlantsPage options={current} onAddPlant={()=>setCreatingPlant(true)}/>}/>
+          <Route path="/plants/:id" element={<PlantDetailPage options={current} refreshOptions={refreshApp} welcomePlantId={welcomePlantId} onWelcomeShown={()=>setWelcomePlantId(null)}/>}/>
+          <Route path="/terrariums" element={<TerrariumsPage onAddTerrarium={()=>setCreatingTerrarium(true)}/>}/>
+          <Route path="/terrariums/:id" element={<TerrariumDetailPage refreshOptions={refreshApp} welcomeTerrariumId={welcomeTerrariumId} onWelcomeShown={()=>setWelcomeTerrariumId(null)}/>}/>
+          <Route path="/species" element={<SpeciesPage refreshOptions={refreshApp}/>}/>
+          <Route path="/species/:id" element={<SpeciesPage refreshOptions={refreshApp}/>}/>
+          <Route path="/journal" element={<JournalWorkspace options={current} refreshOptions={refreshApp}/>}/>
+          <Route path="/journal/:id" element={<JournalWorkspace options={current} refreshOptions={refreshApp}/>}/>
+          <Route path="/settings" element={<SettingsPage/>}/>
+          <Route path="*" element={<Navigate to="/" replace/>}/>
+        </Routes></Suspense>
+      </div>
     </main>
     <PlantForm open={creatingPlant} options={current} onClose={()=>setCreatingPlant(false)} onSaved={plant=>{setCreatingPlant(false);setWelcomePlantId(plant.id);refreshApp();navigate(`/plants/${plant.id}`)}}/>
     <TerrariumForm open={creatingTerrarium} onClose={()=>setCreatingTerrarium(false)} onSaved={item=>{setCreatingTerrarium(false);setWelcomeTerrariumId(item.id);refreshApp();navigate(`/terrariums/${item.id}`)}}/>

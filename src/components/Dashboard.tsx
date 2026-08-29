@@ -23,7 +23,7 @@ export function Dashboard({onAddPlant,onAddTerrarium,gardenState,onGardenStateCh
   return <div className="content dashboard-page">
     <section className="welcome"><div>
       <span className="eyebrow">{new Intl.DateTimeFormat(undefined,{weekday:"long",month:"long",day:"numeric"}).format(new Date())}</span>
-      <h1>Your greenhouse ♡</h1>
+      <h1>Your Greenhouse ♡</h1>
       <p>All of the plants under your care</p>
     </div>{!empty&&<div className="home-create-actions"><button className="button primary" onClick={onAddPlant}><Plus size={18}/> Add plant</button>{onAddTerrarium&&<button className="button ghost" onClick={onAddTerrarium}><Sprout size={18}/> Add terrarium</button>}</div>}</section>
     <section className="summary-grid">

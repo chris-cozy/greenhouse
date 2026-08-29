@@ -94,6 +94,11 @@ describe("browser-local forest appearance", () => {
     vi.mocked(api.get).mockResolvedValue(null);
     const { App } = await import("../src/App");
     await act(async () => root.render(<StrictMode><App/></StrictMode>));
+    const main=host.querySelector('.app-shell > main')!;
+    const scroller=main.querySelector('.page-scroll')!;
+    expect(main.firstElementChild?.classList.contains('topbar')).toBe(true);
+    expect(main.lastElementChild).toBe(scroller);
+    expect(scroller.querySelector('.settings-page')).not.toBeNull();
     expect(toggle().getAttribute("aria-checked")).toBe("true");
     await act(async () => toggle().click()); expect(enabled()).toBe("false");
     expect(host.textContent).toContain("could not be remembered");

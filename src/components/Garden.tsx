@@ -1,5 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Leaf, Pause, Play, Sprout } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pause, Play, Sprout } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import type { DashboardGardenItem } from "../shared/types";
 import { useOverlaysOpen, useReducedMotion } from "./Interaction";
@@ -167,14 +167,16 @@ export function Garden({ plants, terrariums, initialState, onViewStateChange }: 
     onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
     onPointerDownCapture={() => { pointerFocus.current = true; }} onPointerUpCapture={() => { pointerFocus.current = false; }} onPointerCancelCapture={() => { pointerFocus.current = false; }} onKeyDownCapture={() => { pointerFocus.current = false; }}
     onFocusCapture={() => { if (!pointerFocus.current) changePlayback(true, false); }}>
-    <header className="garden-card-header"><div><span className="eyebrow">Your collection</span><h2>All of the sprites in your garden</h2></div></header>
-    <div className="garden-controls">
-      {loop && <div className="garden-playback">
-        <button className="button ghost" disabled={reduced} aria-controls={trackId} onClick={() => changePlayback(!pausedRef.current)}>{reduced || paused ? <Play size={16}/> : <Pause size={16}/>} {reduced ? "Motion off" : paused ? "Play" : "Pause"}</button>
-        <div className="garden-arrows"><button className="icon-button" aria-label="Scroll garden left" aria-controls={trackId} onClick={() => roll(-1)}><ChevronLeft/></button><button className="icon-button" aria-label="Scroll garden right" aria-controls={trackId} onClick={() => roll(1)}><ChevronRight/></button></div>
-      </div>}
-      <div className="garden-links"><Link to="/plants"><Leaf/> Plants</Link><Link to="/terrariums"><Sprout/> Terrariums</Link></div>
-    </div>
+    <header className="garden-card-header">
+      <span className="eyebrow">Your collection</span>
+      <div className="garden-heading-row">
+        <h2>All of the sprites in your garden</h2>
+        {loop && <div className="garden-playback">
+          <button className="button ghost" disabled={reduced} aria-controls={trackId} onClick={() => changePlayback(!pausedRef.current)}>{reduced || paused ? <Play size={16}/> : <Pause size={16}/>} {reduced ? "Motion off" : paused ? "Play" : "Pause"}</button>
+          <div className="garden-arrows"><button className="icon-button" aria-label="Scroll garden left" aria-controls={trackId} onClick={() => roll(-1)}><ChevronLeft/></button><button className="icon-button" aria-label="Scroll garden right" aria-controls={trackId} onClick={() => roll(1)}><ChevronRight/></button></div>
+        </div>}
+      </div>
+    </header>
     <div className="garden-scene" role="group" aria-label="Your plant and terrarium garden">
       {items.length ? <ul id={trackId} ref={track} className={`garden-track ${loop ? "is-looping" : ""} ${dragging ? "is-dragging" : ""}`} tabIndex={0} aria-label="Garden companions" aria-describedby={instructionsId} onScroll={publish}
         onDragStart={event => event.preventDefault()}

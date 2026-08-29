@@ -18,7 +18,7 @@ body { background: radial-gradient(ellipse at 85% 0, #34472b33, transparent 45%)
 .form-fields { display: contents; border: 0; padding: 0; margin: 0; min-width: 0; }
 .field { min-width: 0; }
 .icon-button { min-width: 44px; min-height: 44px; display: inline-grid; place-items: center; border-radius: 12px; }
-.button, .icon-button, .sidebar a, .garden-card-header a, .collection-card, .plant-card {
+.button, .icon-button, .sidebar a, .collection-card, .plant-card {
   transition: transform 160ms var(--ease-settle), background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
 }
 .button:not(:disabled):hover, .icon-button:not(:disabled):hover { filter: brightness(1.07); }
@@ -242,7 +242,7 @@ button:disabled { transform: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; }
-  .app-shell, .sidebar, .button, .icon-button, .collection-card, .plant-card, .garden-item, .tab-indicator, .sidebar a, .garden-card-header a { transition: none !important; }
+  .app-shell, .sidebar, .button, .icon-button, .collection-card, .plant-card, .garden-item, .tab-indicator, .sidebar a { transition: none !important; }
   .garden-item .spirit { transition: none !important; }
   .button:active, .icon-button:active, .collection-card:hover, .collection-card:active, .plant-card:active, .garden-item:hover .spirit, .garden-item:active .spirit { transform: none !important; }
   .modal, .modal-backdrop, .spirit-settling, .new-moment, .save-feedback-message, .profile-tab-content, .profile-tab-panel, .garden-track { animation: none !important; }

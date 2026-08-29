@@ -23,7 +23,7 @@ export function SettingsPage() {
     });
   };
   return <div className="content settings-page">
-    <PageHeader eyebrow="Settings" title="Your local greenhouse" description="Data lives on this computer. Keep a portable backup somewhere safe."/>
+    <PageHeader eyebrow="Settings" title="Your Local Greenhouse" description="Data lives on this computer. Keep a portable backup somewhere safe."/>
     <section className="settings-card appearance-settings" aria-labelledby="appearance-heading">
       <div className="appearance-heading"><Trees aria-hidden="true"/><h2 id="appearance-heading">Appearance</h2></div>
       <div className="appearance-choice">
