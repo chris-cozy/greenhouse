@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { JournalWorkspace } from "../src/journal/JournalWorkspace";
 import { ApiError, api } from "../src/api";
 import { draftKey, draftOf } from "../src/journal/Autosave";
+import { initializeAppearance, setForestAesthetic } from "../src/appearance";
 import type { JournalEntry } from "../src/shared/types";
 
 vi.mock("../src/api",async original=>({...await original<typeof import("../src/api")>(),api:{get:vi.fn(),put:vi.fn(),post:vi.fn(),delete:vi.fn()}}));
@@ -33,6 +34,22 @@ async function title(value:string){await act(async()=>{const input=host.querySel
 async function click(label:string){await act(async()=>{Array.from(host.querySelectorAll("button")).find(button=>button.textContent===label)!.click()})}
 
 describe("diary workspace navigation",()=>{
+  it("preserves a draft, editor selection and open date dialog across appearance changes without saving",async()=>{
+    const stop=initializeAppearance();
+    try {
+      await open();await title("My unfinished observation");
+      const editor=host.querySelector<HTMLTextAreaElement>('[aria-label="Test document"]')!;
+      editor.focus();editor.setSelectionRange(1,5);
+      await act(async()=>host.querySelector<HTMLButtonElement>('.created-date')!.click());
+      const dialog=host.querySelector('[role="dialog"]'),focus=document.activeElement,reads=vi.mocked(api.get).mock.calls.length;
+      await act(async()=>{setForestAesthetic(false);setForestAesthetic(true)});
+      expect(host.querySelector('[aria-label="Test document"]')).toBe(editor);
+      expect(editor.selectionStart).toBe(1);expect(editor.selectionEnd).toBe(5);
+      expect(host.querySelector('[role="dialog"]')).toBe(dialog);expect(document.activeElement).toBe(focus);
+      expect(host.querySelector<HTMLInputElement>('[aria-label="Entry title"]')?.value).toBe("My unfinished observation");
+      expect(api.get).toHaveBeenCalledTimes(reads);expect(api.put).not.toHaveBeenCalled();expect(api.post).not.toHaveBeenCalled();
+    } finally {stop();document.documentElement.removeAttribute('data-forest-aesthetic')}
+  });
   it("keeps the same editor and selection while the index becomes a drawer",async()=>{
     let width=1200;const size=vi.spyOn(HTMLElement.prototype,'clientWidth','get').mockImplementation(()=>width);
     try {

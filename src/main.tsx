@@ -1,9 +1,13 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
+import { initializeAppearance } from "./appearance";
 import "./theme.css";
 import "./styles.css";
 import "./components/Dashboard.css";
 import "./components/Cozy.css";
 import "./components/Workspace.css";
+import "./forest.css";
+const stopAppearance = initializeAppearance();
+if (import.meta.hot) import.meta.hot.dispose(stopAppearance);
 createRoot(document.getElementById("root")!).render(<StrictMode><App /></StrictMode>);

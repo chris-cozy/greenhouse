@@ -1,10 +1,12 @@
 import { useRef, useState } from "react";
-import { ArchiveRestore, Download, FileArchive, ShieldCheck, Upload } from "lucide-react";
+import { ArchiveRestore, Download, FileArchive, ShieldCheck, Trees, Upload } from "lucide-react";
 import { api } from "../api";
+import { setForestAesthetic, useForestAesthetic } from "../appearance";
 import { ErrorNote, Modal, PageHeader } from "./Common";
 import { useMutation } from "./Interaction";
 
 export function SettingsPage() {
+  const appearance = useForestAesthetic();
   const input = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null), [confirm, setConfirm] = useState(false), [restored, setRestored] = useState(false);
   const mutation = useMutation(), completed = useRef(false);
@@ -22,6 +24,14 @@ export function SettingsPage() {
   };
   return <div className="content settings-page">
     <PageHeader eyebrow="Settings" title="Your local greenhouse" description="Data lives on this computer. Keep a portable backup somewhere safe."/>
+    <section className="settings-card appearance-settings" aria-labelledby="appearance-heading">
+      <div className="appearance-heading"><Trees aria-hidden="true"/><h2 id="appearance-heading">Appearance</h2></div>
+      <div className="appearance-choice">
+        <div><label id="forest-aesthetic-label" htmlFor="forest-aesthetic">Forest aesthetic</label><p id="forest-aesthetic-help">Use a softly lit forest and green glass panels. Saved in this browser.</p></div>
+        <button id="forest-aesthetic" className="appearance-switch" type="button" role="switch" aria-checked={appearance.enabled} aria-labelledby="forest-aesthetic-label" aria-describedby="forest-aesthetic-help forest-aesthetic-storage" onClick={() => setForestAesthetic(!appearance.enabled)}><span aria-hidden="true"/><span className="visually-hidden">{appearance.enabled ? "On" : "Off"}</span></button>
+      </div>
+      <p id="forest-aesthetic-storage" className="appearance-storage" role="status">{!appearance.remembered && "This choice works for this session, but browser storage is unavailable so it could not be remembered."}</p>
+    </section>
     <div className="settings-grid">
       <article className="settings-card"><div className="setting-icon"><Download/></div><span className="eyebrow">Complete backup</span><h2>Take your greenhouse with you</h2><p>Download one ZIP containing a consistent SQLite snapshot, every uploaded image, and a versioned manifest.</p><a className="button primary" href="/api/backup"><FileArchive/> Download backup</a></article>
       <article className="settings-card"><div className="setting-icon amber"><ArchiveRestore/></div><span className="eyebrow">Restore</span><h2>Return to a saved state</h2><p>Restoring replaces your current greenhouse with the contents of a backup. Download a fresh backup first if you want to keep today’s records.</p><p><ShieldCheck size={16} aria-hidden="true"/> Greenhouse validates the file and keeps a rollback copy while restoring.</p>

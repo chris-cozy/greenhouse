@@ -11,6 +11,7 @@ import type { GardenViewState } from "../src/components/Garden";
 import { Dashboard, Garden } from "../src/components/Dashboard";
 import { getPlantIcon, PLANT_ICON_IMAGES } from "../src/shared/plantIcons";
 import type { DashboardData } from "../src/shared/types";
+import { initializeAppearance, setForestAesthetic } from "../src/appearance";
 
 const dashboard: DashboardData = {
   livingPlants: 32,
@@ -157,6 +158,17 @@ describe("endless garden carousel",()=>{
     await advance(1000);expect(track().scrollLeft-start).toBeCloseTo(18,5);
     await advance(1000,32);expect(track().scrollLeft-start).toBeCloseTo(36,5);
     expect(interactiveHost!.querySelector('.garden-card [role=status]')?.textContent).toBe('');
+  });
+  it("keeps the same carousel, logical position, focus and playback preference when appearance changes",async()=>{
+    const stop=initializeAppearance();
+    try {
+      await showGarden(7);await click('Pause');await scroll(7*136+63);
+      const original=track(),offset=original.scrollLeft,entries=links(),play=gardenButton('Play');
+      await act(async()=>play.focus());
+      await act(async()=>{setForestAesthetic(false);setForestAesthetic(true)});await advance(5000);
+      expect(track()).toBe(original);expect(track().scrollLeft).toBe(offset);expect(links()).toEqual(entries);
+      expect(gardenButton('Play')).toBe(play);expect(document.activeElement).toBe(play);
+    } finally {stop();localStorage.removeItem('greenhouse-forest-aesthetic');document.documentElement.removeAttribute('data-forest-aesthetic')}
   });
   it("rebases both seams and restores logical position and pause preference",async()=>{
     await showGarden(7);const period=7*136;

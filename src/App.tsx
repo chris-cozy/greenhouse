@@ -50,7 +50,10 @@ function Shell(){
   const gardenState=useRef<GardenViewState|undefined>(undefined);
   const [welcomePlantId,setWelcomePlantId]=useState<string|null>(null);
   const [welcomeTerrariumId,setWelcomeTerrariumId]=useState<string|null>(null);
-  const [sidebarCollapsed,setSidebarCollapsed]=useState(()=>localStorage.getItem("greenhouse-sidebar-collapsed")==="true");
+  const [sidebarCollapsed,setSidebarCollapsed]=useState(()=>{
+    try{return localStorage.getItem("greenhouse-sidebar-collapsed")==="true"}
+    catch{return false}
+  });
   useEffect(()=>{
     const key=(e:KeyboardEvent)=>{
       if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){if((e.target as HTMLElement).closest("[contenteditable]"))return;e.preventDefault();setSearch(true)}
@@ -59,7 +62,10 @@ function Shell(){
     window.addEventListener("keydown",key);
     return()=>window.removeEventListener("keydown",key);
   },[]);
-  useEffect(()=>localStorage.setItem("greenhouse-sidebar-collapsed",String(sidebarCollapsed)),[sidebarCollapsed]);
+  useEffect(()=>{
+    try{localStorage.setItem("greenhouse-sidebar-collapsed",String(sidebarCollapsed))}
+    catch{/* Sidebar and appearance controls still work for this session. */}
+  },[sidebarCollapsed]);
   const current=options||emptyOptions;
   const refreshApp=()=>{void reloadOptions({background:true});void reloadNotifications({background:true})};
   const toggleLabel=sidebarCollapsed?"Expand sidebar":"Collapse sidebar";

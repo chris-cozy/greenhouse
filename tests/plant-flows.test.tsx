@@ -9,6 +9,7 @@ import { PlantDetailPage } from "../src/components/Plants";
 import { PhotoUpload } from "../src/components/Common";
 import { getPlantIcon } from "../src/shared/plantIcons";
 import type { Plant } from "../src/shared/types";
+import { initializeAppearance, setForestAesthetic } from "../src/appearance";
 
 vi.mock("../src/api",()=>({api:{get:vi.fn(),post:vi.fn(),put:vi.fn(),upload:vi.fn(),delete:vi.fn()}}));
 const options={species:[],terrariums:[],tags:[]};
@@ -90,6 +91,20 @@ async function profile(welcome?:string,onWelcomeShown=vi.fn()){
   await mount(<MemoryRouter initialEntries={['/plants/fern']}><Routes><Route path='/plants/:id' element={<PlantDetailPage options={options} refreshOptions={()=>{}} welcomePlantId={welcome} onWelcomeShown={onWelcomeShown}/>}/></Routes></MemoryRouter>);
 }
 describe("profile feedback and refresh",()=>{
+  it("keeps the active tab, comparison and update draft when appearance changes",async()=>{
+    const stop=initializeAppearance();
+    try {
+      await profile();await act(async()=>button('Progress photos').click());await act(async()=>button('Compare photos').click());
+      const comparison=host.querySelector('.compare-panel');
+      await act(async()=>button('Add update').click());await fill('Title','A quiet new frond');await fill('What happened?','Still writing this note');
+      const form=host.querySelector('form'),focus=document.activeElement,reads=vi.mocked(api.get).mock.calls.length;
+      await act(async()=>{setForestAesthetic(false);setForestAesthetic(true)});
+      expect(host.querySelector('form')).toBe(form);expect(document.activeElement).toBe(focus);
+      expect(input('Title').value).toBe('A quiet new frond');expect(input('What happened?').value).toBe('Still writing this note');
+      expect(host.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe('Progress photos');expect(host.querySelector('.compare-panel')).toBe(comparison);
+      expect(api.get).toHaveBeenCalledTimes(reads);expect(api.post).not.toHaveBeenCalled();expect(api.put).not.toHaveBeenCalled();
+    } finally {stop();localStorage.removeItem('greenhouse-forest-aesthetic');document.documentElement.removeAttribute('data-forest-aesthetic')}
+  });
   it("does not celebrate routine visits and uses the same plant spirit",async()=>{
     await profile();expect(host.querySelector('.spirit-profile img')?.getAttribute('src')).toBe(getPlantIcon('fern'));expect(host.querySelector('.spirit-settling')).toBeNull();expect(host.querySelector('.save-feedback')?.textContent).toBe('');
   });

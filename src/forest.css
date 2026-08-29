@@ -1,0 +1,167 @@
+/* An opt-in material layer over the existing layout. Removing the attribute's
+   true value restores the original stylesheet, including the garden grass. */
+:root[data-forest-aesthetic="true"] {
+  --surface: #172a1d;
+  --surface-raised: #2a3e2c;
+  --reference-surface: #111f17;
+  --writing-surface: #101c14;
+  --writing-index: #17251b;
+  --home-surface: #1c3020;
+  --overlay-surface: #14231a;
+  --input: #14231a;
+  --sidebar: #15231a;
+  --text-secondary: #ccd5c2;
+  --line: #c5d3b43d;
+  --glass-rim: #e3e4c526;
+  --glass-shadow: 0 10px 28px #060e0a30, inset 0 1px 0 var(--glass-rim);
+}
+
+:root[data-forest-aesthetic="true"] body { background:transparent; }
+:root[data-forest-aesthetic="true"] body::before {
+  content:"";
+  position:fixed;
+  inset:0;
+  z-index:-2;
+  pointer-events:none;
+  background:linear-gradient(#09140c26,#09140c40), url('/images/forest-desktop.webp') center / cover no-repeat, #101a14;
+  filter:blur(2px);
+}
+
+/* These parents deliberately have no filter, transform, isolation, or new
+   stacking context. Their fixed dialogs, notices and editor menus stay fixed
+   to the viewport. Only their noninteractive background pseudo is filtered. */
+:root[data-forest-aesthetic="true"] :is(
+  .garden-card, .dashboard-page .panel, .recent-photos, .reminder-strip,
+  .getting-started, .settings-card, .library-layout, .diary-workspace,
+  .living-collection .collection-card, .living-profile .fact-card,
+  .living-profile .care-card, .environment-card, .danger-card,
+  .living-profile .photo-grid figure, .compare-panel
+) {
+  position:relative;
+  background:transparent;
+  border-color:var(--line);
+  box-shadow:var(--glass-shadow);
+}
+:root[data-forest-aesthetic="true"] :is(
+  .garden-card, .dashboard-page .panel, .recent-photos, .reminder-strip,
+  .getting-started, .settings-card, .library-layout, .diary-workspace,
+  .living-collection .collection-card, .living-profile .fact-card,
+  .living-profile .care-card, .environment-card, .danger-card,
+  .living-profile .photo-grid figure, .compare-panel,
+  .sidebar, .topbar
+)::before {
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:-1;
+  border-radius:inherit;
+  pointer-events:none;
+  background:var(--glass-surface, var(--panel));
+  -webkit-backdrop-filter:blur(10px);
+  backdrop-filter:blur(10px);
+}
+:root[data-forest-aesthetic="true"] .dashboard-page { --glass-surface:var(--home-surface); }
+:root[data-forest-aesthetic="true"] .library-layout { --glass-surface:var(--reference-surface); }
+:root[data-forest-aesthetic="true"] .diary-workspace { --glass-surface:var(--writing-surface); }
+:root[data-forest-aesthetic="true"] :is(.sidebar,.topbar) {
+  --glass-surface:var(--sidebar);
+  background:transparent;
+  border-color:var(--line);
+  box-shadow:inset 0 -1px 0 #e3e4c50d;
+}
+:root[data-forest-aesthetic="true"] .side-note { background:var(--panel); }
+:root[data-forest-aesthetic="true"] .sidebar-toggle { color:var(--muted); }
+
+:root[data-forest-aesthetic="true"] .garden-scene { background:transparent; }
+:root[data-forest-aesthetic="true"] .garden-scene::before { content:none; }
+:root[data-forest-aesthetic="true"] .garden-track { scrollbar-color:#b6d0a580 transparent; }
+:root[data-forest-aesthetic="true"] .garden-item-label { text-shadow:0 1px 5px #07130b; }
+:root[data-forest-aesthetic="true"] :is(.garden-links a,.garden-arrows button) { background:var(--panel2); }
+
+:root[data-forest-aesthetic="true"] :is(.living-collection .collection-tools select,.inline-search,.compare-controls select,.diary-search) {
+  background:var(--input);
+  color:var(--muted);
+  border-color:var(--line);
+}
+:root[data-forest-aesthetic="true"] :is(.living-profile .detail-tabs,.living-collection .scope-tabs) {
+  background:var(--reference-surface);
+  border-radius:12px;
+}
+:root[data-forest-aesthetic="true"] .living-profile .timeline {
+  background:var(--reference-surface);
+  border-radius:20px;
+}
+:root[data-forest-aesthetic="true"] .living-profile :is(.tab-toolbar,.section-heading) { position:relative; }
+:root[data-forest-aesthetic="true"] .living-profile :is(.tab-toolbar,.section-heading)::before {
+  content:"";
+  position:absolute;
+  inset:-8px;
+  z-index:-1;
+  background:var(--reference-surface);
+  border-radius:12px;
+  pointer-events:none;
+}
+:root[data-forest-aesthetic="true"] .section-heading :is(a,button) { color:var(--muted); }
+:root[data-forest-aesthetic="true"] :is(.empty-state,.loading) {
+  background:var(--reference-surface);
+  border-radius:20px;
+}
+/* Nested cards are tinted only; never add another backdrop blur to them. */
+:root[data-forest-aesthetic="true"] .compare-images figure { background:var(--panel2); }
+:root[data-forest-aesthetic="true"] .species-reference-hero { background:#101a14; }
+:root[data-forest-aesthetic="true"] .species-reference-hero header { --muted:#ccd5c2; }
+:root[data-forest-aesthetic="true"] .diary-index { background:var(--writing-index); }
+:root[data-forest-aesthetic="true"] .diary-page:not(.is-wide) .diary-index.is-open { background:var(--overlay-surface); }
+:root[data-forest-aesthetic="true"] :is(.diary-tag-options,.diary-slash-menu,.save-feedback-message,.refresh-progress) {
+  background:var(--overlay-surface);
+  border-color:var(--line);
+  box-shadow:var(--glass-shadow);
+}
+:root[data-forest-aesthetic="true"] .modal {
+  --panel:var(--overlay-surface);
+  background:var(--overlay-surface);
+  border-color:#c5d3b459;
+  box-shadow:0 24px 80px #02090488, inset 0 1px 0 var(--glass-rim);
+}
+:root[data-forest-aesthetic="true"] .file-drop { background:var(--input); color:var(--muted); }
+
+/* Browsers without backdrop filtering get opaque, readable green surfaces. */
+@supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))) {
+  :root[data-forest-aesthetic="true"] {
+    --surface:rgb(23 42 29 / 82%);
+    --surface-raised:rgb(42 62 44 / 90%);
+    --home-surface:rgb(24 44 29 / 65%);
+    --reference-surface:rgb(17 31 23 / 82%);
+    --writing-surface:rgb(16 28 20 / 92%);
+    --writing-index:rgb(23 37 27 / 82%);
+    --overlay-surface:rgb(20 35 26 / 96%);
+    --input:rgb(20 35 26 / 96%);
+    --sidebar:rgb(18 32 23 / 82%);
+  }
+}
+@media (max-width:620px) {
+  :root[data-forest-aesthetic="true"] body::before { background-image:linear-gradient(#09140c26,#09140c40),url('/images/forest-mobile.webp'); }
+}
+@media (prefers-reduced-transparency:reduce) {
+  :root[data-forest-aesthetic="true"] {
+    --surface:#172a1d;
+    --surface-raised:#2a3e2c;
+    --home-surface:#1c3020;
+    --reference-surface:#111f17;
+    --writing-surface:#101c14;
+    --writing-index:#17251b;
+    --overlay-surface:#14231a;
+    --input:#14231a;
+    --sidebar:#15231a;
+  }
+  :root[data-forest-aesthetic="true"] body::before { content:none; }
+  :root[data-forest-aesthetic="true"] *::before { -webkit-backdrop-filter:none; backdrop-filter:none; }
+}
+@media (forced-colors:active) {
+  :root[data-forest-aesthetic="true"] body::before { content:none; }
+  :root[data-forest-aesthetic="true"] *::before { -webkit-backdrop-filter:none; backdrop-filter:none; }
+  .appearance-switch { border:2px solid ButtonText; background:Canvas; forced-color-adjust:none; }
+  .appearance-switch > span:first-child { background:ButtonText; }
+  .appearance-switch[aria-checked=true] { background:Highlight; border-color:Highlight; }
+  .appearance-switch[aria-checked=true] > span:first-child { background:HighlightText; }
+}
