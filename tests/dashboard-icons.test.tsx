@@ -11,7 +11,7 @@ import type { GardenViewState } from "../src/components/Garden";
 import { Dashboard, Garden } from "../src/components/Dashboard";
 import { Spirit } from "../src/components/Spirit";
 import { getPlantIcon, PLANT_ICON_IMAGES } from "../src/shared/plantIcons";
-import type { DashboardData } from "../src/shared/types";
+import type { DashboardData, Plant } from "../src/shared/types";
 import { initializeAppearance, setForestAesthetic } from "../src/appearance";
 
 const dashboard: DashboardData = {
@@ -97,6 +97,17 @@ describe("dashboard collection icons", () => {
     expect(spirits[0].dataset.motionProfile).toBe(({standing:'sway',seated:'nod',resting:'breathe'} as const)[spirits[0].dataset.pose as 'standing'|'seated'|'resting']);
     expect(spirits[0].getAttribute('style')).toBe(spirits[1].getAttribute('style'));expect(spirits[0].querySelector('img')?.getAttribute('src')).toBe(getPlantIcon('fern'));
     expect(spirits[2].dataset.pose).toBe('terrarium');expect(spirits[2].dataset.motionProfile).toBe('terrarium');expect(spirits[2].classList).toContain('spirit-motion-idle');
+  });
+  it("adds each plant companion to its growing story card",()=>{
+    const recent=dashboard.recentlyUpdated;
+    const plant=(id:string,profilePhotoUrl:string|null):Plant=>({id,name:`Story ${id}`,speciesId:null,speciesCommonName:"Fern",speciesScientificName:"",description:"",dateAcquired:"",source:"",location:"Window",terrariumId:null,terrariumName:null,status:"healthy",profilePhotoId:null,profilePhotoUrl,archivedAt:null,dateOfDeath:"",causeOfDeath:"",finalNotes:"",tags:[],updatedAt:"2026-08-29",createdAt:"2026-08-29"});
+    dashboard.recentlyUpdated=[plant("fern",null),plant("moss","/media/moss.jpg")];
+    try {
+      const html=renderToStaticMarkup(<MemoryRouter><Dashboard onAddPlant={()=>{}}/></MemoryRouter>),document=new DOMParser().parseFromString(html,"text/html");
+      const cards=Array.from(document.querySelectorAll('.plant-card'));
+      expect(cards).toHaveLength(2);cards.forEach((card,index)=>{const item=dashboard.recentlyUpdated[index],name=card.querySelector('.story-card-name'),spirit=name?.querySelector('.story-card-spirit .spirit');expect(name?.querySelector('h3')?.textContent).toBe(item.name);expect(spirit).not.toBeNull();expect(spirit?.classList).toContain('spirit-small');expect(spirit?.classList).toContain('spirit-motion-still');expect(spirit?.querySelector('img')?.getAttribute('src')).toBe(getPlantIcon(item.id));});
+      expect(document.querySelector('.placeholder-leaf')).toBeNull();
+    } finally {dashboard.recentlyUpdated=recent;}
   });
 });
 

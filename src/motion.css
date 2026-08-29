@@ -33,7 +33,7 @@
   :where(.collection-card,.plant-card):hover { border-color:#6f866e; box-shadow:0 12px 30px #07110a38; }
   .photo-grid figure:hover img,.recent-photos img:hover { transform:scale(1.025); }
   :where(.collection-card,.attention-group a,.search-results [role=option],.resident-list a):hover .spirit,
-  .profile-identity:hover .spirit { transform:translateY(-2px); }
+  .profile-identity:hover .spirit,.plant-card:hover .story-card-spirit .spirit,.plant-card:focus-visible .story-card-spirit .spirit { transform:translateY(-2px); }
 }
 
 :where(.button,.icon-button,.sidebar-toggle,.attention-notification,.appearance-switch,.collection-card,.plant-card,.species-list button):not(:disabled):active,
@@ -41,6 +41,7 @@
   transform:translateY(1px) scale(.975);
   transition-duration:var(--motion-press);
 }
+.plant-card:active .story-card-spirit .spirit { transform:translateY(1px) scale(.95,1.03); transition-duration:var(--motion-press); }
 
 .button.primary:not(:disabled):hover { box-shadow:0 7px 20px #07100942; }
 .search-trigger:hover,.search-trigger:focus-visible { border-color:#6d826b; box-shadow:0 6px 22px #0710092e; }
@@ -221,6 +222,7 @@
   .appearance-switch:active,
   .garden-item:hover .spirit,.garden-item:focus-visible .spirit,.garden-item:active .spirit,
   :where(.collection-card,.attention-group a,.search-results [role=option],.resident-list a):hover .spirit,
-  .profile-identity:hover .spirit,.photo-grid figure:hover img,.recent-photos img:hover { transform:none !important; }
+  .profile-identity:hover .spirit,.plant-card:hover .story-card-spirit .spirit,.plant-card:focus-visible .story-card-spirit .spirit,
+  .plant-card:active .story-card-spirit .spirit,.photo-grid figure:hover img,.recent-photos img:hover { transform:none !important; }
   .appearance-switch[aria-checked=true] > span:first-child { transform:translateX(20px) !important; }
 }

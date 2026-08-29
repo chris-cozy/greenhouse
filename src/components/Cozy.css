@@ -85,6 +85,9 @@ button:disabled { transform: none; }
 .dashboard-page .section-heading a { font-size: 13px; min-height: 44px; display: inline-flex; align-items: center; }
 .dashboard-page .plant-row { grid-template-columns: repeat(3,minmax(0,1fr)); }
 .dashboard-page .plant-card { min-width: 0; min-height: 300px; padding: 14px; color: var(--cream); }
+.dashboard-page .story-card-name { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.dashboard-page .story-card-spirit { display: inline-flex; flex: 0 0 auto; pointer-events: none; }
+.dashboard-page .story-card-spirit .spirit { width: 32px; height: 34px; }
 .dashboard-page .plant-card h3 { overflow-wrap: anywhere; }
 .dashboard-page .plant-card p, .dashboard-page .plant-card small { font-size: 12px; }
 .dashboard-page .plant-card .status { max-width: 100%; white-space: normal; }
