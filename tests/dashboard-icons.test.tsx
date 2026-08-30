@@ -114,11 +114,11 @@ describe("dashboard collection icons", () => {
   it("adds each plant companion to its growing story card",()=>{
     const recent=dashboard.recentlyUpdated;
     const plant=(id:string,profilePhotoUrl:string|null):Plant=>({id,name:`Story ${id}`,spriteImage:"/images/plant-spirit-moss-seated.png",speciesId:null,speciesCommonName:"Fern",speciesScientificName:"",description:"",dateAcquired:"",source:"",location:"Window",terrariumId:null,terrariumName:null,status:"healthy",profilePhotoId:null,profilePhotoUrl,archivedAt:null,dateOfDeath:"",causeOfDeath:"",finalNotes:"",tags:[],updatedAt:"2026-08-29",createdAt:"2026-08-29"});
-    dashboard.recentlyUpdated=[plant("fern",null),plant("moss","/media/moss.jpg")];
+    dashboard.recentlyUpdated=Array.from({length:7},(_,index)=>plant(`story-${index}`,index%2?`/media/story-${index}.jpg`:null));
     try {
       const html=renderToStaticMarkup(<MemoryRouter><Dashboard onAddPlant={()=>{}}/></MemoryRouter>),document=new DOMParser().parseFromString(html,"text/html");
       const cards=Array.from(document.querySelectorAll('.plant-card'));
-      expect(cards).toHaveLength(2);cards.forEach((card,index)=>{const item=dashboard.recentlyUpdated[index],name=card.querySelector('.story-card-name'),spirit=name?.querySelector('.story-card-spirit .spirit');expect(name?.querySelector('h3')?.textContent).toBe(item.name);expect(spirit).not.toBeNull();expect(spirit?.classList).toContain('spirit-small');expect(spirit?.classList).toContain('spirit-motion-still');expect(spirit?.querySelector('img')?.getAttribute('src')).toBe(getPlantIcon(item.id,item.spriteImage));});
+      expect(cards).toHaveLength(6);cards.forEach((card,index)=>{const item=dashboard.recentlyUpdated[index],name=card.querySelector('.story-card-name'),spirit=name?.querySelector('.story-card-spirit .spirit');expect(name?.querySelector('h3')?.textContent).toBe(item.name);expect(spirit).not.toBeNull();expect(spirit?.classList).toContain('spirit-small');expect(spirit?.classList).toContain('spirit-motion-still');expect(spirit?.querySelector('img')?.getAttribute('src')).toBe(getPlantIcon(item.id,item.spriteImage));});
       expect(document.querySelector('.placeholder-leaf')).toBeNull();
     } finally {dashboard.recentlyUpdated=recent;}
   });
