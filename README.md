@@ -1,73 +1,143 @@
 # Greenhouse
 
-Greenhouse is a calm, local-first home for plant profiles, terrariums, species references, progress photos, care guidance, and a Markdown journal. It emphasizes meaningful updates rather than mandatory care logging.
+> A calm, local-first plant companion for organizing plants and terrariums, setting care reminders, tracking progress photos, and keeping a rich journal.
 
-## Run locally
+Greenhouse is a self-hosted home for the plants in your care and the stories that grow around them. It brings plant profiles, terrariums, botanical references, care guidance, photos, and journal entries into one private collection—without turning plant care into paperwork.
 
-Requires Node.js 20 or newer.
+## Features
+
+- **Living plant archive** — Keep profiles for living, dormant, recovering, deceased, and archived plants, with locations, tags, care notes, and a meaningful history.
+- **Terrarium records** — Document habitats, residents, environmental details, cover photos, and changes over time.
+- **Gentle care reminders** — Schedule one-time or repeating reminders, then complete, snooze, disable, or undo them. Greenhouse never assumes a task was done or logs it automatically.
+- **Progress photos** — Build a visual history for each plant or terrarium and choose dedicated profile and cover images.
+- **Botanical reference library** — Save reusable species information once and link it to every relevant plant.
+- **Rich Markdown journal** — Write with slash commands, checklists, tables, links, images, date mentions, tags, and autosave while keeping the underlying content portable.
+- **Fast global search** — Find plants, terrariums, species, and journal entries from anywhere in the app.
+- **Portable backups** — Download and restore a versioned ZIP containing both the SQLite database and uploaded media.
+- **Local by default** — No accounts, telemetry, cloud database, or external plant service.
+
+## Quick start
+
+### Requirements
+
+- Node.js 20 or newer
+- npm
+
+Install the dependencies and start the development server:
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open `http://localhost:5173`. The local API runs on `http://localhost:4000`; Vite proxies API and media requests during development.
+Open [http://localhost:5173](http://localhost:5173). The local API runs on port `4000`, and Vite proxies API and media requests during development.
 
-Production-style local run:
+To populate a running instance with an example collection:
+
+```bash
+npm run seed:demo
+```
+
+The demo seed adds sample plants, species, terrariums, journal entries, reminders, and photos to the current database.
+
+### Production-style local run
 
 ```bash
 npm run build
 npm start
 ```
 
-Then open `http://localhost:4000`.
+Open [http://localhost:4000](http://localhost:4000).
 
-## Docker
+## Run with Docker
 
 ```bash
 docker compose up --build
 ```
 
-Open `http://localhost:4000`. The `greenhouse-data` volume preserves SQLite data and uploaded media. Set `GREENHOUSE_PORT` to expose another host port.
+Open [http://localhost:4000](http://localhost:4000). The `greenhouse-data` volume preserves the database and uploaded media between container restarts.
 
-## Local data
+To expose a different host port:
 
-By default, Greenhouse keeps data in `./data`:
+```bash
+GREENHOUSE_PORT=8080 docker compose up --build
+```
 
-- `greenhouse.sqlite` contains structured records and media metadata.
-- `media/` contains original uploaded images.
+## Data and configuration
 
-Override the locations with `DATA_DIR`, `DATABASE_PATH`, and `MEDIA_DIR`; see `.env.example`.
+Greenhouse stores all application data locally in `./data` by default:
 
-## Greenhouse Diary
+```text
+data/
+├── greenhouse.sqlite   # Structured application data
+└── media/              # Original uploaded images
+```
 
-The diary is one editable workspace at `/journal`; direct `/journal/:id` links still work. Search and diary tags filter the entry list without closing your document. On narrow screens, **Entries** opens the list.
+Set any of the environment variables documented in `.env.example` to customize the local server:
 
-- Write Markdown naturally, or type `/` for headings, lists, checklists, quotes, code, tables, links, images, dates, and videos. Use `@tomorrow` or another date to insert a semantic date mention.
-- Changes save locally after 700 ms of inactivity. Pending writes finish before you switch entries. Recovery drafts are also kept in this browser until saved; avoid clearing browser storage while a save is failing.
-- Conflicting edits never overwrite another saved version. Retry failed saves, reload the saved version, or save a conflicted/deleted entry's recovery draft as a new entry.
-- **Created** is editable and controls diary chronology. **Last edited** is automatic; the API retains the original creation timestamp as read-only `recordedAt`. No-op saves leave timestamps and revisions unchanged.
-- Diary tags have their own catalog, counts, and management controls. Renaming or deleting them never changes plant/photo tags or deletes entries.
-- Images support selection, paste, and drop, with a 20 MB per-file limit and JPEG/PNG/GIF/WebP signature checks. Local images are backed up with other media. Images remain available for undo while the entry exists; entry deletion removes only unshared attachments.
-- Stored content remains Markdown. Unknown HTML stays visible as inert text; remote images are not loaded. YouTube URLs remain portable links, and a player loads only when requested.
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `PORT` | `4000` | HTTP port used by the Express server |
+| `DATA_DIR` | `./data` | Base directory for persistent data |
+| `DATABASE_PATH` | `./data/greenhouse.sqlite` | SQLite database location |
+| `MEDIA_DIR` | `./data/media` | Uploaded image location |
 
-Plant and terrarium headers include **Choose cover photo**. A later upload never replaces your chosen cover. Deleting that photo restores the placeholder.
+> [!IMPORTANT]
+> Greenhouse has no authentication. Keep it on a trusted device or network, or place it behind an authenticated reverse proxy before making it accessible from the public internet.
+
+## Journal behavior
+
+The journal is a single editable workspace at `/journal`; direct `/journal/:id` links also open the requested entry. Search and journal tags filter the entry list without closing the current document. On narrow screens, **Entries** opens the list.
+
+- Type Markdown naturally, or enter `/` for headings, lists, checklists, quotes, code, tables, links, images, dates, and videos. Date mentions such as `@tomorrow` are stored semantically.
+- Changes save after 700 ms of inactivity, and pending writes finish before switching entries. The browser also keeps recovery drafts until the server confirms a save.
+- Revision checks prevent conflicting edits from silently overwriting a saved version. Failed and conflicted saves can be retried, reloaded, or preserved as a new entry.
+- **Created** controls journal chronology and remains editable. **Last edited** is automatic, while the original record timestamp remains unchanged.
+- Journal tags have their own catalog and counts. Renaming or deleting one does not affect plant or photo tags, and never deletes entries.
+- Pasted, dropped, and selected images support JPEG, PNG, GIF, and WebP files up to 20 MB. Image signatures are validated rather than trusted from file extensions alone.
+- Stored content remains Markdown. Unknown HTML is shown as inert text, remote images do not load automatically, and YouTube URLs stay portable links until the player is requested.
+
+Avoid clearing browser storage while a save is failing, because unsynced recovery drafts live in the current browser.
+
+## Photos and covers
+
+Plant and terrarium profiles include **Choose cover photo**. Uploading a newer image does not replace an explicitly selected cover; deleting the selected image restores the placeholder. Original uploads are stored with the rest of the local media and included in backups.
 
 ## Backup and restore
 
-Open **Settings** inside Greenhouse:
+Open **Settings** in Greenhouse to manage portable backups:
 
-- **Download backup** creates a versioned ZIP containing a consistent SQLite snapshot, all media, and a manifest.
-- **Restore** validates the ZIP and database integrity before swapping data, with rollback protection if the operation fails.
+- **Download backup** creates a versioned ZIP with a consistent SQLite snapshot, every uploaded media file, and a manifest.
+- **Restore** validates the archive and database integrity before replacing current data, with rollback protection if the operation fails.
 
-The diary schema upgrade runs transactionally and saves a `greenhouse.sqlite.before-diary-*.sqlite` snapshot before changing an existing database. Older backups are migrated on restore, preserving links, tags, media, and legacy diary dates. When an old diary date differs from its original creation date, that diary date is retained at local noon. Browser recovery drafts are not part of server backups: resolve pending saves before restoring a backup.
+Diary schema upgrades run transactionally and create a `greenhouse.sqlite.before-diary-*.sqlite` snapshot before changing an existing database. Older backups are migrated during restore while preserving links, tags, media, and legacy journal dates.
 
-## Quality checks
+Browser recovery drafts are not part of server backups. Resolve pending saves before restoring a backup.
+
+## Technology
+
+- React 19 and TypeScript
+- Vite
+- Express
+- SQLite via `better-sqlite3`
+- Milkdown for rich Markdown editing
+- Vitest and jsdom
+
+## Development
+
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Run the Vite client and Express API in watch mode |
+| `npm run seed:demo` | Add the example collection to a running instance |
+| `npm run typecheck` | Type-check the client and server |
+| `npm test` | Run the test suite once |
+| `npm run build` | Type-check and create production client/server builds |
+| `npm start` | Serve the production build |
+
+Run the full set of checks before submitting a change:
 
 ```bash
 npm run typecheck
 npm test
 npm run build
 ```
-
-Greenhouse uses no authentication, telemetry, cloud database, or external plant service.
