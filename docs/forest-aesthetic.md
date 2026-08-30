@@ -14,7 +14,7 @@ Settings → Appearance → **Forest aesthetic** applies immediately. It default
 
 ## Artwork
 
-The original is retained at `design/concepts/magical-forest-v1.png` (1672 × 941). The approved Home and Journal renders remain in `design/concepts/renders` as visual references.
+The application ships two optimized forest exports:
 
 | Export | Dimensions | Bytes | Treatment |
 | --- | --- | --- | --- |
