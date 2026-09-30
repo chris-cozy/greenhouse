@@ -126,10 +126,10 @@ function PlantDetail({ id, options, refreshOptions, welcomePlantId, onWelcomeSho
               </footer></div>
             </article>)}</div> : <EmptyState icon={<Spirit id={plant.id} spriteImage={plant.spriteImage} size="empty"/>} title="Care that fits this plant" copy="Add general guidance such as “water when the top layer is dry.” Schedules are optional." action={<button className="button primary" onClick={() => openCare()}>Add guidance</button>}/>}
         </section>
-        <section {...panel("photos")}><ProfilePhotos kind="plant" id={plant.id} spriteImage={plant.spriteImage} photos={plant.photos || []} coverPhotoId={plant.profilePhotoId} onSaved={saved} newMoment={newMoment} onMomentShown={() => setNewMoment(null)}/></section>
+        <section {...panel("photos")}><ProfilePhotos options={options} kind="plant" id={plant.id} spriteImage={plant.spriteImage} photos={plant.photos || []} coverPhotoId={plant.profilePhotoId} onSaved={saved} newMoment={newMoment} onMomentShown={() => setNewMoment(null)}/></section>
         <section {...panel("about")}><div className="about-grid"><article className="fact-card"><span className="eyebrow">Current profile</span><dl>
           <div><dt>Species</dt><dd>{plant.speciesCommonName || "Not identified"}</dd></div><div><dt>Scientific name</dt><dd>{plant.speciesScientificName || "—"}</dd></div><div><dt>Acquired</dt><dd>{plant.dateAcquired ? shortDate(plant.dateAcquired) : "Not recorded"}</dd></div><div><dt>Source</dt><dd>{plant.source || "Not recorded"}</dd></div><div><dt>Location</dt><dd>{place}</dd></div>
-        </dl></article><article className="danger-card"><Archive/><h3>Collection controls</h3><p>Archive hides this plant without losing its story. Permanent deletion removes its records and photos.</p><div>
+        </dl></article><article className="danger-card"><Archive/><h3>Collection controls</h3><p>Archive hides this plant without losing its story. Permanent deletion removes its records and photos that are not shared with other plants.</p><div>
           <button className="button ghost" disabled={archive.busy} onClick={() => void archive.run(() => api.post(`/api/plants/${plant.id}/archive`, { archived: !plant.archivedAt }), () => { refreshOptions(); navigate("/plants"); })}>{plant.archivedAt ? "Return to collection" : "Archive plant"}</button>
           <button className="button danger-text" onClick={() => setConfirm(true)}><Trash2/> Delete</button>
         </div>{archive.error && <ErrorNote message={archive.error}/>}</article></div></section>
@@ -139,6 +139,6 @@ function PlantDetail({ id, options, refreshOptions, welcomePlantId, onWelcomeSho
     <PlantForm open={editing} plant={plant} options={options} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); saved("Plant details saved."); }} onCoverSaved={() => saved("Cover photo updated.")}/>
     {care && <CareForm key={care.version} open={careOpen} plantId={plant.id} item={care.item} onClose={() => setCareOpen(false)} onSaved={() => { setCareOpen(false); saved("Care guidance saved."); }}/>}
     <HistoryForm open={history} plantId={plant.id} onClose={() => setHistory(false)} onSaved={eventId => { setHistory(false); saved("A new moment added to the story.", { kind: "event", id: eventId }); }}/>
-    {confirm && <Confirm title={`Delete ${plant.name}?`} copy="This permanently removes the profile, photos, care guidance, and history. Linked journal entries remain, with this plant link removed." onClose={() => setConfirm(false)} onConfirm={async () => { await api.delete(`/api/plants/${plant.id}`); refreshOptions(); navigate("/plants"); }}/>}
+    {confirm && <Confirm title={`Delete ${plant.name}?`} copy="This permanently removes the profile and history. Photos and care guidance linked to other plants remain. Linked journal entries remain, with this plant link removed." onClose={() => setConfirm(false)} onConfirm={async () => { await api.delete(`/api/plants/${plant.id}`); refreshOptions(); navigate("/plants"); }}/>}
   </div>;
 }

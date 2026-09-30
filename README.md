@@ -9,7 +9,9 @@ Greenhouse is a self-hosted home for the plants in your care and the stories tha
 - **Living plant archive** — Keep profiles for living, dormant, recovering, deceased, and archived plants, with locations, tags, care notes, and a meaningful history.
 - **Terrarium records** — Document habitats, residents, environmental details, cover photos, and changes over time.
 - **Gentle care reminders** — Schedule one-time or repeating reminders, then complete, snooze, disable, or undo them. Greenhouse never assumes a task was done or logs it automatically.
-- **Progress photos** — Build a visual history for each plant or terrarium and choose dedicated profile and cover images.
+- **Reusable care guidance** — Link plants to existing instructions while keeping their reminder schedules independent. Instruction edits apply to every linked plant.
+- **Progress photos** — Preview uploads, link one group photo to multiple plants, edit its links and metadata, and choose independent plant covers. Photos still linked to another plant survive plant deletion.
+- **Reusable form choices** — Choose existing sources, locations, and plant/photo tags or type new ones. Diary tags remain separate.
 - **Botanical reference library** — Save reusable species information once and link it to every relevant plant.
 - **Rich Markdown journal** — Write with slash commands, checklists, tables, links, images, date mentions, tags, and autosave while keeping the underlying content portable.
 - **Fast global search** — Find plants, terrariums, species, and journal entries from anywhere in the app.
@@ -111,6 +113,8 @@ Open **Settings** in Greenhouse to manage portable backups:
 - **Restore** validates the archive and database integrity before replacing current data, with rollback protection if the operation fails.
 
 Diary schema upgrades run transactionally and create a `greenhouse.sqlite.before-diary-*.sqlite` snapshot before changing an existing database. Older backups are migrated during restore while preserving links, tags, media, and legacy journal dates.
+
+Shared photo and care guidance upgrades also run transactionally, with a `greenhouse.sqlite.before-sharing-*.sqlite` snapshot. Existing photo files, covers, care IDs, and reminder schedules are preserved; similar records are not automatically merged.
 
 Browser recovery drafts are not part of server backups. Resolve pending saves before restoring a backup.
 

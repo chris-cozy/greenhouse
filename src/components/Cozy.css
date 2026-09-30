@@ -51,6 +51,36 @@ button:disabled { transform: none; }
 .form-divider span { background: var(--panel); }
 .file-drop { background: #14221a; }
 .file-drop small { font-size: 12px; color: var(--muted); }
+.modal-backdrop { padding:24px; }
+.modal { max-height:calc(100dvh - 48px); }
+.modal .scroll-form { flex:1 1 auto; max-height:none; scrollbar-gutter:stable; }
+.photo-file-drop { overflow:hidden; gap:8px; padding:20px; min-width:0; }
+.photo-file-drop img,.photo-preview img { display:block; width:100%; height:220px; object-fit:contain; }
+.photo-file-drop span { max-width:100%; overflow-wrap:anywhere; }
+.photo-file-drop.has-preview { min-height:280px; }
+.photo-file-drop:focus-within { outline:2px solid var(--green); outline-offset:3px; }
+.photo-preview { overflow:hidden; border:1px solid var(--line); border-radius:12px; background:var(--input); }
+.record-choice,.tag-choice { min-width:0; }
+.record-choice-options { display:grid; gap:3px; max-height:160px; overflow-y:auto; border:1px solid var(--line); border-radius:10px; background:var(--input); padding:6px; margin-top:4px; }
+.record-choice-options button { color:var(--cream); background:transparent; border:0; border-radius:6px; padding:8px; text-align:left; overflow-wrap:anywhere; }
+.record-choice-options button:hover,.record-choice-options button[aria-selected=true] { background:var(--panel2); }
+.record-choice-options p { padding:4px 8px; margin:0; color:var(--muted); }
+.record-tag-chips,.linked-plant-summary { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:6px; }
+.record-tag-chips>span,.linked-plant-summary>span { display:inline-flex; align-items:center; gap:6px; border:1px solid var(--line); border-radius:20px; padding:4px 8px; color:var(--cream); font-size:12px; overflow-wrap:anywhere; }
+.record-tag-chips button { display:flex; background:transparent; border:0; padding:2px; color:inherit; }
+.tag-entry-actions { display:flex; justify-content:space-between; gap:10px; align-items:center; margin-top:4px; }
+.tag-entry-actions small { color:var(--muted); font-size:11px; }
+.plant-links { display:grid; gap:10px; min-width:0; }
+.plant-links>strong { color:var(--muted); font-size:12px; }
+.plant-links>input { width:100%; min-height:44px; padding:10px 11px; border:1px solid #4a614e; border-radius:var(--control-radius); background:var(--input); color:var(--cream); outline:none; }
+.plant-links>input::placeholder { color:var(--muted); }
+.plant-links>input:focus { border-color:#7fa57e; box-shadow:0 0 0 3px #6b98651f; }
+.plant-link-options { display:grid; gap:4px; max-height:160px; overflow:auto; padding:6px; border:1px solid var(--line); border-radius:10px; }
+.plant-link-options label { display:flex; gap:10px; align-items:center; padding:6px; font-size:14px; }
+.plant-link-options input { width:16px; height:16px; flex-shrink:0; }
+.plant-link-options small { margin-left:8px; color:var(--muted); }
+.shared-record-note,.guidance-preview { border:1px solid var(--line); border-radius:12px; padding:14px; background:var(--panel2); font-size:13px; color:var(--muted); margin:0; overflow-wrap:anywhere; }
+.guidance-preview strong { color:var(--cream); }
 .error-note { overflow-wrap: anywhere; }
 .refresh-note { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border: 1px solid #746440; border-radius: 12px; color: #eddbad; background: #302e1f; margin: 12px 0; font-size: 14px; }
 .refresh-progress { position: fixed; right: 24px; bottom: 24px; z-index: 55; color: var(--muted); font-size: 12px; padding: 10px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
@@ -195,6 +225,10 @@ button:disabled { transform: none; }
 .sprite-choice strong:last-child { grid-row: 1 / -1; align-self: center; }
 .sprite-choice small { grid-column: 2; color: var(--muted); font-size: 11px; }
 .sprite-surprise .sprite-choice-preview img { width: 23px; margin-inline: -6px; }
+.sprite-picker.sprite-picker-compact { height:auto; grid-template-rows:auto auto; }
+.sprite-picker-compact>.sprite-picker-grid { overflow:visible; padding-right:0; }
+.sprite-alternatives summary { cursor:pointer; padding:10px 2px; color:var(--cream); font-size:13px; }
+.sprite-alternatives>.sprite-picker-grid { max-height:280px; }
 .living-profile :is(.plant-record,.terrarium-record) { overflow: hidden; border: 1px solid var(--line); border-radius: 20px; background: var(--reference-surface); box-shadow: 0 16px 40px #07110a24; }
 .living-profile :is(.plant-record,.terrarium-record) .detail-tabs { margin: 0; padding: 10px 20px; border-bottom: 1px solid var(--line); }
 .living-profile :is(.plant-record,.terrarium-record) .refresh-note { margin: 20px 32px 0; }

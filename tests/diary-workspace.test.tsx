@@ -30,69 +30,69 @@ async function open(path="/journal/one"){
   router=createMemoryRouter([{path:"/journal/:id?",element:<JournalWorkspace options={{species:[],terrariums:[],tags:[]}} refreshOptions={()=>{}}/>},{path:"/plants",element:<p>Plant collection</p>}],{initialEntries:[path]});
   await act(async()=>root.render(<StrictMode><RouterProvider router={router}/></StrictMode>));
 }
-async function title(value:string){await act(async()=>{const input=host.querySelector<HTMLInputElement>('[aria-label="Entry title"]')!;Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value")!.set!.call(input,value);input.dispatchEvent(new Event("input",{bubbles:true}))})}
-async function click(label:string){await act(async()=>{Array.from(host.querySelectorAll("button")).find(button=>button.textContent===label)!.click()})}
+async function title(value:string){await act(async()=>{const input=document.body.querySelector<HTMLInputElement>('[aria-label="Entry title"]')!;Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value")!.set!.call(input,value);input.dispatchEvent(new Event("input",{bubbles:true}))})}
+async function click(label:string){await act(async()=>{Array.from(document.body.querySelectorAll("button")).find(button=>button.textContent===label)!.click()})}
 
 describe("diary workspace navigation",()=>{
   it("preserves a draft, editor selection and open date dialog across appearance changes without saving",async()=>{
     const stop=initializeAppearance();
     try {
       await open();await title("My unfinished observation");
-      const editor=host.querySelector<HTMLTextAreaElement>('[aria-label="Test document"]')!;
+      const editor=document.body.querySelector<HTMLTextAreaElement>('[aria-label="Test document"]')!;
       editor.focus();editor.setSelectionRange(1,5);
-      await act(async()=>host.querySelector<HTMLButtonElement>('.created-date')!.click());
-      const dialog=host.querySelector('[role="dialog"]'),focus=document.activeElement,reads=vi.mocked(api.get).mock.calls.length;
+      await act(async()=>document.body.querySelector<HTMLButtonElement>('.created-date')!.click());
+      const dialog=document.body.querySelector('[role="dialog"]'),focus=document.activeElement,reads=vi.mocked(api.get).mock.calls.length;
       await act(async()=>{setForestAesthetic(false);setForestAesthetic(true)});
-      expect(host.querySelector('[aria-label="Test document"]')).toBe(editor);
+      expect(document.body.querySelector('[aria-label="Test document"]')).toBe(editor);
       expect(editor.selectionStart).toBe(1);expect(editor.selectionEnd).toBe(5);
-      expect(host.querySelector('[role="dialog"]')).toBe(dialog);expect(document.activeElement).toBe(focus);
-      expect(host.querySelector<HTMLInputElement>('[aria-label="Entry title"]')?.value).toBe("My unfinished observation");
+      expect(document.body.querySelector('[role="dialog"]')).toBe(dialog);expect(document.activeElement).toBe(focus);
+      expect(document.body.querySelector<HTMLInputElement>('[aria-label="Entry title"]')?.value).toBe("My unfinished observation");
       expect(api.get).toHaveBeenCalledTimes(reads);expect(api.put).not.toHaveBeenCalled();expect(api.post).not.toHaveBeenCalled();
     } finally {stop();document.documentElement.removeAttribute('data-forest-aesthetic')}
   });
   it("keeps the same editor and selection while the index becomes a drawer",async()=>{
     let width=1200;const size=vi.spyOn(HTMLElement.prototype,'clientWidth','get').mockImplementation(()=>width);
     try {
-      await open();const editor=host.querySelector<HTMLTextAreaElement>('[aria-label="Test document"]')!;editor.focus();editor.setSelectionRange(2,5);
-      await act(async()=>{width=390;window.dispatchEvent(new Event('resize'))});await act(async()=>host.querySelector<HTMLButtonElement>('.diary-list-toggle')!.click());
-      expect(host.querySelector('[aria-label="Test document"]')).toBe(editor);expect(editor.selectionStart).toBe(2);expect(editor.selectionEnd).toBe(5);
-      await act(async()=>{width=1200;window.dispatchEvent(new Event('resize'))});expect(host.querySelector('[aria-label="Test document"]')).toBe(editor);expect(api.put).not.toHaveBeenCalled();
+      await open();const editor=document.body.querySelector<HTMLTextAreaElement>('[aria-label="Test document"]')!;editor.focus();editor.setSelectionRange(2,5);
+      await act(async()=>{width=390;window.dispatchEvent(new Event('resize'))});await act(async()=>document.body.querySelector<HTMLButtonElement>('.diary-list-toggle')!.click());
+      expect(document.body.querySelector('[aria-label="Test document"]')).toBe(editor);expect(editor.selectionStart).toBe(2);expect(editor.selectionEnd).toBe(5);
+      await act(async()=>{width=1200;window.dispatchEvent(new Event('resize'))});expect(document.body.querySelector('[aria-label="Test document"]')).toBe(editor);expect(api.put).not.toHaveBeenCalled();
     } finally {size.mockRestore()}
   });
   it("opens unchanged under Strict Mode and flushes before switching entries",async()=>{
     await open();expect(api.put).not.toHaveBeenCalled();await title("Just typed");
     await act(async()=>{await router.navigate("/journal/two")});
-    expect(api.put).toHaveBeenCalledTimes(1);expect(records[0].title).toBe("Just typed");expect(router.state.location.pathname).toBe("/journal/two");expect(host.querySelector<HTMLInputElement>('[aria-label="Entry title"]')?.value).toBe("Second entry");
+    expect(api.put).toHaveBeenCalledTimes(1);expect(records[0].title).toBe("Just typed");expect(router.state.location.pathname).toBe("/journal/two");expect(document.body.querySelector<HTMLInputElement>('[aria-label="Entry title"]')?.value).toBe("Second entry");
   });
   it("keeps failed navigation in place, retains recovery, and retries without losing edits",async()=>{
     await open();vi.mocked(api.put).mockRejectedValueOnce(new Error("Offline"));await title("Keep my writing");
     await act(async()=>{await router.navigate("/plants")});expect(router.state.location.pathname).toBe("/journal/one");expect(localStorage.getItem(draftKey("one"))).toContain("Keep my writing");
-    expect(host.textContent).toContain("Offline");await click("Keep writing");await click("Retry save");expect(records[0].title).toBe("Keep my writing");expect(localStorage.getItem(draftKey("one"))).toBeNull();
-    await act(async()=>{await router.navigate("/plants")});expect(host.textContent).toBe("Plant collection");
+    expect(document.body.textContent).toContain("Offline");await click("Keep writing");await click("Retry save");expect(records[0].title).toBe("Keep my writing");expect(localStorage.getItem(draftKey("one"))).toBeNull();
+    await act(async()=>{await router.navigate("/plants")});expect(document.body.textContent).toBe("Plant collection");
   });
   it("opens a deleted entry's local recovery and offers saving a new copy",async()=>{
     records=records.filter(e=>e.id!=="one");localStorage.setItem(draftKey("one"),JSON.stringify({revision:1,draft:{...draftOf(base),content:"Recovered observation"}}));await open();
-    expect(host.textContent).toContain("deleted elsewhere");expect(host.querySelector<HTMLTextAreaElement>('[aria-label="Test document"]')?.value).toBe("Recovered observation");expect(host.textContent).toContain("Save draft as new entry");expect(api.put).not.toHaveBeenCalled();
+    expect(document.body.textContent).toContain("deleted elsewhere");expect(document.body.querySelector<HTMLTextAreaElement>('[aria-label="Test document"]')?.value).toBe("Recovered observation");expect(document.body.textContent).toContain("Save draft as new entry");expect(api.put).not.toHaveBeenCalled();
     let finish!:(entry:JournalEntry)=>void;vi.mocked(api.post).mockImplementationOnce(()=>new Promise(resolve=>{finish=resolve as typeof finish}));
-    await click("Save draft as new entry");expect(host.querySelector(".diary-writing-column")?.hasAttribute("inert")).toBe(true);
+    await click("Save draft as new entry");expect(document.body.querySelector(".diary-writing-column")?.hasAttribute("inert")).toBe(true);
     const copy={...base,id:"copy",content:"Recovered observation"};records.push(copy);await act(async()=>finish(copy));expect(router.state.location.pathname).toBe("/journal/copy");expect(localStorage.getItem(draftKey("one"))).toBeNull();
   });
   it("retries a failed entry load without getting stuck on the loading screen",async()=>{
     const original=vi.mocked(api.get).getMockImplementation()!;let fail=true;
     vi.mocked(api.get).mockImplementation(async path=>{if(path==="/api/journal/one"&&fail)throw new Error("Temporary read failure");return original(path)});
-    await open();expect(host.textContent).toContain("Temporary read failure");fail=false;await click("Refresh diary");expect(host.querySelector<HTMLInputElement>('[aria-label="Entry title"]')?.value).toBe("First entry");
+    await open();expect(document.body.textContent).toContain("Temporary read failure");fail=false;await click("Refresh diary");expect(document.body.querySelector<HTMLInputElement>('[aria-label="Entry title"]')?.value).toBe("First entry");
   });
   it("preserves timestamp precision on unchanged date submissions and saves creation edits",async()=>{
     records[0]={...base,createdAt:"2026-08-27T10:00:42.123Z"};await open();
-    await act(async()=>host.querySelector<HTMLButtonElement>(".created-date")!.click());await click("Save creation date");expect(api.put).not.toHaveBeenCalled();
-    await act(async()=>host.querySelector<HTMLButtonElement>(".created-date")!.click());
-    await act(async()=>{const input=host.querySelector<HTMLInputElement>('input[type="datetime-local"]')!;Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value")!.set!.call(input,"2020-04-03T14:30");input.dispatchEvent(new Event("input",{bubbles:true}))});
+    await act(async()=>document.body.querySelector<HTMLButtonElement>(".created-date")!.click());await click("Save creation date");expect(api.put).not.toHaveBeenCalled();
+    await act(async()=>document.body.querySelector<HTMLButtonElement>(".created-date")!.click());
+    await act(async()=>{const input=document.body.querySelector<HTMLInputElement>('input[type="datetime-local"]')!;Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value")!.set!.call(input,"2020-04-03T14:30");input.dispatchEvent(new Event("input",{bubbles:true}))});
     await click("Save creation date");await act(async()=>{await router.navigate("/plants")});
     expect(records[0].createdAt).toBe(new Date("2020-04-03T14:30").toISOString());expect(records[0].recordedAt).toBe(base.recordedAt);
   });
   it("locks the previous document while creating and does not redirect after leaving",async()=>{
     await open();let finish!:(entry:JournalEntry)=>void;vi.mocked(api.post).mockImplementationOnce(()=>new Promise(resolve=>{finish=resolve as typeof finish}));
-    await act(async()=>host.querySelector<HTMLButtonElement>(".diary-heading .primary")!.click());expect(host.querySelector(".diary-document")?.hasAttribute("inert")).toBe(true);
+    await act(async()=>document.body.querySelector<HTMLButtonElement>(".diary-heading .primary")!.click());expect(document.body.querySelector(".diary-document")?.hasAttribute("inert")).toBe(true);
     expect(api.post).toHaveBeenCalledWith("/api/journal",expect.objectContaining({title:"Untitled entry",content:""}));
     await act(async()=>{await router.navigate("/plants")});await act(async()=>finish({...base,id:"new"}));expect(router.state.location.pathname).toBe("/plants");
   });

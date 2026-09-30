@@ -12,7 +12,7 @@ import { api } from "../src/api";
 vi.mock("../src/api", () => ({ api: { upload:vi.fn(), get:vi.fn(), post:vi.fn(), put:vi.fn() } }));
 let stop: () => void, root: Root, host: HTMLDivElement;
 const enabled = () => document.documentElement.getAttribute("data-forest-aesthetic");
-const toggle = () => host.querySelector<HTMLButtonElement>('[role="switch"]')!;
+const toggle = () => document.body.querySelector<HTMLButtonElement>('[role="switch"]')!;
 const mount = () => act(async () => root.render(<StrictMode><SettingsPage/></StrictMode>));
 beforeEach(() => {
   (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
@@ -70,20 +70,20 @@ describe("browser-local forest appearance", () => {
     runInNewContext(html.match(/<script>([\s\S]*?)<\/script>/)![1], { document, localStorage });
     expect(enabled()).toBe("true"); stop = initializeAppearance();
     await mount(); await act(async () => toggle().click()); expect(enabled()).toBe("false");
-    expect(host.querySelector('[role="status"]')?.textContent).toContain("could not be remembered");
+    expect(document.body.querySelector('[role="status"]')?.textContent).toContain("could not be remembered");
     await act(async () => root.render(<p>Another route</p>)); await mount(); expect(toggle().getAttribute("aria-checked")).toBe("false");
     read.mockRestore(); write.mockRestore(); await act(async () => toggle().click());
-    expect(localStorage.getItem(key)).toBe("true"); expect(host.textContent).not.toContain("could not be remembered");
+    expect(localStorage.getItem(key)).toBe("true"); expect(document.body.textContent).not.toContain("could not be remembered");
   });
 
   it("preserves a selected restore file and its open confirmation without performing a write", async () => {
-    await mount(); const input = host.querySelector<HTMLInputElement>('input[type="file"]')!;
+    await mount(); const input = document.body.querySelector<HTMLInputElement>('input[type="file"]')!;
     Object.defineProperty(input, "files", { configurable:true, value:[new File(["test"], "keep-me.zip", { type:"application/zip" })] });
     await act(async () => input.dispatchEvent(new Event("change", { bubbles:true })));
-    await act(async () => Array.from(host.querySelectorAll("button")).find(button => button.textContent === "Restore this backup")!.click());
-    const dialog = host.querySelector('[role="dialog"]'), focused = document.activeElement;
+    await act(async () => Array.from(document.body.querySelectorAll("button")).find(button => button.textContent === "Restore this backup")!.click());
+    const dialog = document.body.querySelector('[role="dialog"]'), focused = document.activeElement;
     await act(async () => setForestAesthetic(false));
-    expect(host.querySelector('[role="dialog"]')).toBe(dialog); expect(document.activeElement).toBe(focused);
+    expect(document.body.querySelector('[role="dialog"]')).toBe(dialog); expect(document.activeElement).toBe(focused);
     expect(dialog?.textContent).toContain("keep-me.zip"); expect(input.files?.[0].name).toBe("keep-me.zip"); expect(api.upload).not.toHaveBeenCalled();
   });
 
@@ -94,16 +94,16 @@ describe("browser-local forest appearance", () => {
     vi.mocked(api.get).mockResolvedValue(null);
     const { App } = await import("../src/App");
     await act(async () => root.render(<StrictMode><App/></StrictMode>));
-    const main=host.querySelector('.app-shell > main')!;
+    const main=document.body.querySelector('.app-shell > main')!;
     const scroller=main.querySelector('.page-scroll')!;
     expect(main.firstElementChild?.classList.contains('topbar')).toBe(true);
     expect(main.lastElementChild).toBe(scroller);
     expect(scroller.querySelector('.settings-page')).not.toBeNull();
     expect(toggle().getAttribute("aria-checked")).toBe("true");
     await act(async () => toggle().click()); expect(enabled()).toBe("false");
-    expect(host.textContent).toContain("could not be remembered");
-    await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Collapse sidebar"]')!.click());
-    expect(host.querySelector('[aria-label="Expand sidebar"]')).not.toBeNull();
+    expect(document.body.textContent).toContain("could not be remembered");
+    await act(async () => document.body.querySelector<HTMLButtonElement>('[aria-label="Collapse sidebar"]')!.click());
+    expect(document.body.querySelector('[aria-label="Expand sidebar"]')).not.toBeNull();
     expect(toggle().getAttribute("aria-checked")).toBe("false");
     window.history.replaceState(null, "", "/");
   });

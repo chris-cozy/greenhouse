@@ -1,16 +1,19 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { api } from "../api";
-import type { Terrarium } from "../shared/types";
+import type { AppOptions, Terrarium } from "../shared/types";
 import { ErrorNote, Field, FormActions, Modal } from "./Common";
 import { CoverPhotoPicker } from "./CoverPhoto";
 import { useMutation } from "./Interaction";
+import { ChoiceInput } from "./RecordChoices";
+import { useLoad } from "./useLoad";
 import { SpritePicker } from "./SpritePicker";
 
 const blankTerrarium = { name: "", spriteImage: "", description: "", dateCreated: "", type: "", location: "", lightingSetup: "", humidityRequirements: "", wateringNotes: "", substrateInformation: "", notes: "", otherInhabitants: "" };
 
-export function TerrariumForm({ item, open = true, onClose, onSaved, onCoverSaved }: {
-  item?: Terrarium; open?: boolean; onClose: () => void; onSaved: (terrarium: Terrarium) => void; onCoverSaved?: () => void;
+export function TerrariumForm({ item, options, open = true, onClose, onSaved, onCoverSaved }: {
+  item?: Terrarium; options?: AppOptions; open?: boolean; onClose: () => void; onSaved: (terrarium: Terrarium) => void; onCoverSaved?: () => void;
 }) {
+  const choices=useLoad<AppOptions>(!options&&open?"/api/options":null);
   const [value, setValue] = useState({ ...blankTerrarium, ...item });
   const [details, setDetails] = useState(false);
   const mutation = useMutation();
@@ -26,7 +29,7 @@ export function TerrariumForm({ item, open = true, onClose, onSaved, onCoverSave
   const optional = <>
     <Field label="Type"><input value={value.type} onChange={e => set("type", e.target.value)} placeholder="Closed tropical, arid…"/></Field>
     <Field label="Date created"><input type="date" value={value.dateCreated} onChange={e => set("dateCreated", e.target.value)}/></Field>
-    <Field label="Location"><input value={value.location} onChange={e => set("location", e.target.value)} placeholder="A quiet corner, a sunny shelf…"/></Field>
+    <Field label="Location"><ChoiceInput label="Location" value={value.location} options={options?.locations||choices.data?.locations||[]} onChange={next=>set("location",next)} placeholder="A quiet corner, a sunny shelf…"/></Field>
     <Field label="Description" wide><textarea rows={3} value={value.description} onChange={e => set("description", e.target.value)}/></Field>
     <div className="form-divider field-wide"><span>Environment</span></div>
     <Field label="Lighting setup"><textarea rows={3} value={value.lightingSetup} onChange={e => set("lightingSetup", e.target.value)}/></Field>

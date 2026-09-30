@@ -1,7 +1,10 @@
 import { type FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { AlertCircle, Check, ImagePlus, LoaderCircle, Plus, Trash2, X } from "lucide-react";
+import { createPortal } from "react-dom";
+import { PlantLinks, TagInput, pendingTags } from "./RecordChoices";
+import { useLoad } from "./useLoad";
 import { api } from "../api";
-import type { Photo } from "../shared/types";
+import type { AppOptions, Photo, PlantChoice } from "../shared/types";
 import { usePresence, useMutation, useOverlay } from "./Interaction";
 export { GlobalSearch } from "./GlobalSearch";
 export { useLoad } from "./useLoad";
@@ -22,7 +25,7 @@ export function Modal({open=true,onExited,...props}:ModalProps){
   const {present,exiting}=usePresence(open);
   const wasPresent=useRef(present),afterExit=useRef(onExited);afterExit.current=onExited;
   useEffect(()=>{if(wasPresent.current&&!present)afterExit.current?.();wasPresent.current=present},[present]);
-  return present?<ModalSurface {...props} exiting={exiting}/>:null;
+  return present?createPortal(<ModalSurface {...props} exiting={exiting}/>,document.body):null;
 }
 function ModalSurface({title,subtitle,eyebrow="Greenhouse record",className="",onClose,children,wide=false,busy=false,exiting}:{exiting:boolean}&ModalProps){
   useOverlay(true);
@@ -63,28 +66,55 @@ export function FormActions({onCancel,busy,label="Save changes"}:{onCancel:()=>v
 export function Field({label,children,wide=false,hint}:{label:string;children:ReactNode;wide?:boolean;hint?:string}){return <label className={`field ${wide?"field-wide":""}`}><span>{label}</span>{children}{hint&&<small>{hint}</small>}</label>}
 export function ChipsInput({options,value,onChange}:{options:Array<{id:string;name:string}>;value:string[];onChange:(value:string[])=>void}){return <div className="check-grid">{options.map(option=><label className={value.includes(option.id)?"check-chip selected":"check-chip"} key={option.id}><input type="checkbox" checked={value.includes(option.id)} onChange={e=>onChange(e.target.checked?[...value,option.id]:value.filter(id=>id!==option.id))}/>{option.name}</label>)}</div>}
 
-export function PhotoUpload({plantId,terrariumId,onDone,onBusyChange}:{plantId?:string;terrariumId?:string;onDone:(photo:Photo)=>void;onBusyChange?:(busy:boolean)=>void}){
-  const [file,setFile]=useState<File|null>(null),[caption,setCaption]=useState("");
-  const [date,setDate]=useState(new Date().toISOString().slice(0,10)),[tags,setTags]=useState("");
+export function PhotoUpload({plantId,terrariumId,photo,options:providedOptions,onDone,onBusyChange}:{plantId?:string;terrariumId?:string;photo?:Photo;options?:AppOptions;onDone:(photo:Photo)=>void;onBusyChange?:(busy:boolean)=>void}){
+  const [file,setFile]=useState<File|null>(null),[caption,setCaption]=useState(photo?.caption||"");
+  const [preview,setPreview]=useState(""),[fileError,setFileError]=useState("");
+  const today=new Date();
+  const [date,setDate]=useState(photo?.dateTaken??`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`);
+  const [tags,setTags]=useState(photo?.tags||[]),[tagDraft,setTagDraft]=useState("");
+  const [plantIds,setPlantIds]=useState(photo?.plantIds??(photo?.plantId?[photo.plantId]:plantId?[plantId]:[]));
+  const loaded=useLoad<AppOptions>(providedOptions?null:"/api/options"),options=providedOptions||loaded.data;
+  const choices=new Map<string,PlantChoice>((options?.plants||[]).map(plant=>[plant.id,plant]));
+  for(const plant of photo?.linkedPlants||[])if(!choices.has(plant.id))choices.set(plant.id,{...plant,status:"healthy",archivedAt:null});
+  if(plantId&&!choices.has(plantId))choices.set(plantId,{id:plantId,name:"This plant",status:"healthy",archivedAt:null});
   const mutation=useMutation();
   useEffect(()=>{onBusyChange?.(mutation.busy)},[mutation.busy,onBusyChange]);
-  const submit=(e:FormEvent)=>{
-    e.preventDefault();if(!file)return;
+  useEffect(()=>{
+    if(!file||typeof URL.createObjectURL!=="function"){setPreview("");return}
+    const url=URL.createObjectURL(file);setPreview(url);return()=>URL.revokeObjectURL(url);
+  },[file]);
+  const submit=(event:FormEvent)=>{
+    event.preventDefault();if((!photo&&!file)||(!terrariumId&&!plantIds.length))return;
+    const committed=pendingTags(tags,tagDraft);
     void mutation.run(()=>{
-      const form=new FormData();form.append("photo",file);
-      if(plantId)form.append("plantId",plantId);if(terrariumId)form.append("terrariumId",terrariumId);
-      form.append("caption",caption);form.append("dateTaken",date);form.append("tags",tags);
+      if(photo)return api.put<Photo>(`/api/photos/${photo.id}`,{caption,dateTaken:date,tags:committed,plantIds});
+      const form=new FormData();form.append("photo",file!);
+      if(terrariumId)form.append("terrariumId",terrariumId);else form.append("plantIds",JSON.stringify(plantIds));
+      form.append("caption",caption);form.append("dateTaken",date);form.append("tags",committed.join(","));
       return api.upload<Photo>("/api/photos",form);
     },onDone);
   };
-  return <form className="form-grid scroll-form" onSubmit={submit}>
+  return <form className="form-grid scroll-form photo-form" onSubmit={submit}>
     <fieldset className="form-fields" disabled={mutation.busy}>
-      <Field label="Photo" wide><div className="file-drop"><ImagePlus/><span>{file?file.name:"Choose an image"}</span><small>JPEG, PNG, WebP, or GIF · up to 20 MB</small><input type="file" accept="image/jpeg,image/png,image/webp,image/gif" required onChange={e=>setFile(e.target.files?.[0]||null)}/></div></Field>
-      <Field label="Date taken"><input type="date" value={date} onChange={e=>setDate(e.target.value)}/></Field>
-      <Field label="Tags"><input value={tags} onChange={e=>setTags(e.target.value)} placeholder="growth, spring"/></Field>
-      <Field label="Caption" wide><textarea rows={3} value={caption} onChange={e=>setCaption(e.target.value)} placeholder="What changed?"/></Field>
+      {photo?<div className="photo-preview field-wide"><img src={photo.url} alt={photo.caption||"Progress photo"}/></div>:<Field label="Photo" wide><div className={`file-drop photo-file-drop ${preview?"has-preview":""}`}>
+        {preview?<img src={preview} alt="Selected photo preview"/>:<ImagePlus/>}
+        <span>{file?file.name:"Choose an image"}</span><small>{file?"Choose another image":"JPEG, PNG, WebP, or GIF · up to 20 MB"}</small>
+        <input aria-label="Photo image" type="file" accept="image/jpeg,image/png,image/webp,image/gif" required onChange={event=>{
+          const next=event.target.files?.[0]||null;
+          if(next&&(!["image/jpeg","image/png","image/webp","image/gif"].includes(next.type)||next.size>20*1024*1024)){
+            setFile(null);setFileError("Choose a JPEG, PNG, WebP, or GIF image up to 20 MB.");event.target.value="";return;
+          }
+          setFileError("");setFile(next);
+        }}/>
+      </div></Field>}
+      {!terrariumId&&<PlantLinks options={[...choices.values()]} value={plantIds} onChange={setPlantIds}/>}
+      {photo&&<p className="shared-record-note field-wide">Caption, date, and tags are shared across all linked plants.</p>}
+      <Field label="Date taken"><input type="date" value={date} onChange={event=>setDate(event.target.value)}/></Field>
+      <Field label="Tags"><TagInput value={tags} draft={tagDraft} onChange={setTags} onDraftChange={setTagDraft} options={options?.tags||[]}/></Field>
+      <Field label="Caption" wide><textarea rows={3} value={caption} onChange={event=>setCaption(event.target.value)} placeholder="What changed?"/></Field>
     </fieldset>
-    {mutation.error&&<div className="field-wide"><ErrorNote message={mutation.error}/></div>}
-    <button className="button primary field-wide" disabled={!file||mutation.busy}>{mutation.busy?<LoaderCircle className="spin"/>:<Plus/>} {mutation.busy?"Saving…":"Add to progress"}</button>
+    {(fileError||mutation.error)&&<div className="field-wide"><ErrorNote message={fileError||mutation.error}/></div>}
+    {loaded.error&&<div className="field-wide refresh-note"><span>Choices could not load: {loaded.error}</span><button type="button" className="text-button" onClick={()=>void loaded.reload()}>Retry</button></div>}
+    <button className="button primary field-wide" disabled={(!photo&&!file)||(!terrariumId&&!plantIds.length)||mutation.busy}>{mutation.busy?<LoaderCircle className="spin"/>:<Plus/>} {mutation.busy?"Saving…":photo?"Save photo":"Add to progress"}</button>
   </form>;
 }

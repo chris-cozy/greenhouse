@@ -69,6 +69,7 @@ app.put("/api/terrariums/:id",(req,res)=>res.json(store.saveTerrarium(req.body,r
 app.post("/api/terrariums/:id/cover-photo",(req,res)=>res.json(store.setCoverPhoto(req.params.id,req.body.photoId||null)));
 app.delete("/api/terrariums/:id",(req,res)=>{const files=store.getTerrarium(req.params.id)?.photos?.map(photo=>decodeURIComponent(photo.url.replace(/^\/media\//,"")))||[];store.deleteTerrarium(req.params.id);for(const file of files)removeMedia(file);res.status(204).end()});
 
+app.get("/api/care-guidance",(req,res)=>res.json(store.listGuidance(String(req.query.q||""))));
 app.post("/api/plants/:plantId/care",(req,res)=>res.status(201).json(store.saveCare(req.params.plantId,req.body)));
 app.put("/api/plants/:plantId/care/:id",(req,res)=>res.json(store.saveCare(req.params.plantId,req.body,req.params.id as any)));
 app.delete("/api/care/:id",(req,res)=>{store.deleteCare(req.params.id);res.status(204).end()});
@@ -104,15 +105,18 @@ app.post("/api/journal/:id/images",upload.single("image"),(req,res,next)=>{
 });
 
 app.post("/api/photos",upload.single("photo"),(req,res,next)=>{
+  let moved:string|undefined;
   try{
     if(!req.file)throw new Error("Choose a JPEG, PNG, WebP, or GIF image under 20 MB.");
-    const plantId=String(req.body.plantId||"")||undefined;const terrariumId=String(req.body.terrariumId||"")||undefined;
-    if(Boolean(plantId)===Boolean(terrariumId))throw new Error("Associate the photo with one plant or terrarium.");
-    const folder=path.join(plantId?"plants":"terrariums",plantId||terrariumId!,new Date().getFullYear().toString());fs.mkdirSync(path.join(mediaDir,folder),{recursive:true});
-    const relative=path.join(folder,`${randomUUID()}${extension[req.file.mimetype]}`);fs.renameSync(req.file.path,path.join(mediaDir,relative));
-    const photo=store.createPhoto({relativePath:relative,originalName:req.file.originalname,mimeType:req.file.mimetype,sizeBytes:req.file.size,plantId,terrariumId,dateTaken:String(req.body.dateTaken||""),caption:String(req.body.caption||""),tags:String(req.body.tags||"").split(",").map(x=>x.trim()).filter(Boolean)});
+    const plantIds=req.body.plantIds===undefined?undefined:JSON.parse(req.body.plantIds);
+    const links=store.validatePhotoLinks({plantIds,plantId:req.body.plantId,terrariumId:req.body.terrariumId});
+    const mime=imageMime(fs.readFileSync(req.file.path));
+    if(!mime||mime!==req.file.mimetype)throw new Error("This file is not a valid JPEG, PNG, WebP, or GIF image.");
+    const folder=path.join(links.terrariumId?"terrariums":"progress",...(links.terrariumId?[links.terrariumId]:[]),new Date().getFullYear().toString());fs.mkdirSync(path.join(mediaDir,folder),{recursive:true});
+    const relative=path.join(folder,`${randomUUID()}${extension[mime]}`);moved=path.join(mediaDir,relative);fs.renameSync(req.file.path,moved);
+    const photo=store.createPhoto({relativePath:relative,originalName:req.file.originalname,mimeType:mime,sizeBytes:req.file.size,plantIds:links.plantIds,terrariumId:links.terrariumId||undefined,dateTaken:String(req.body.dateTaken||""),caption:String(req.body.caption||""),tags:String(req.body.tags||"").split(",").map(x=>x.trim()).filter(Boolean)});
     res.status(201).json(photo);
-  }catch(error){if(req.file)fs.rmSync(req.file.path,{force:true});next(error)}
+  }catch(error){if(req.file)fs.rmSync(req.file.path,{force:true});if(moved)fs.rmSync(moved,{force:true});next(error)}
 });
 app.put("/api/photos/:id",(req,res)=>res.json(store.updatePhoto(req.params.id,req.body)));
 app.delete("/api/photos/:id",(req,res)=>{removeMedia(store.deletePhoto(req.params.id));res.status(204).end()});

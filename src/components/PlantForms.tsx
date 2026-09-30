@@ -1,9 +1,11 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { api } from "../api";
-import type { AppOptions, CareItem, HistoryEventType, Plant, PlantStatus } from "../shared/types";
-import { ErrorNote, Field, FormActions, Modal, prettyStatus, splitTags } from "./Common";
+import type { AppOptions, CareGuidance, CareItem, HistoryEventType, Plant, PlantStatus } from "../shared/types";
+import { ErrorNote, Field, FormActions, Modal, prettyStatus } from "./Common";
 import { CoverPhotoPicker } from "./CoverPhoto";
 import { useMutation } from "./Interaction";
+import { ChoiceInput, TagInput, pendingTags } from "./RecordChoices";
+import { useLoad } from "./useLoad";
 import { SpritePicker } from "./SpritePicker";
 
 export const plantStatuses: PlantStatus[] = ["healthy", "needs_attention", "recovering", "dormant", "deceased"];
@@ -16,12 +18,13 @@ export function PlantForm({ plant, options, open = true, onClose, onSaved, onCov
   plant?: Plant; options: AppOptions; open?: boolean; onClose: () => void; onSaved: (plant: Plant) => void; onCoverSaved?: () => void;
 }) {
   const [value, setValue] = useState({ ...blankPlant, ...plant, tags: plant?.tags || [] });
-  const [tags, setTags] = useState(value.tags.join(", "));
-  const [details, setDetails] = useState(false);
+  const [tags, setTags] = useState(value.tags);
+  const [tagDraft, setTagDraft] = useState("");
+  const [details, setDetails] = useState(true);
   const mutation = useMutation();
   const reset = () => {
     setValue({ ...blankPlant, ...plant, tags: plant?.tags || [] });
-    setTags((plant?.tags || []).join(", ")); setDetails(false); mutation.clearError();
+    setTags(plant?.tags || []); setTagDraft(""); setDetails(true); mutation.clearError();
   };
   // Reopening an editor reads the latest profile, without resetting an in-progress edit on a refresh.
   useEffect(() => { if (open) reset(); }, [open, plant?.id]);
@@ -29,7 +32,7 @@ export function PlantForm({ plant, options, open = true, onClose, onSaved, onCov
   const close = () => { if (!mutation.isBusy()) onClose(); };
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    const payload = { ...value, name: value.name.trim(), speciesId: value.speciesId || null, terrariumId: value.terrariumId || null, tags: splitTags(tags) };
+    const payload = { ...value, name: value.name.trim(), speciesId: value.speciesId || null, terrariumId: value.terrariumId || null, tags: pendingTags(tags,tagDraft) };
     void mutation.run(() => plant ? api.put<Plant>(`/api/plants/${plant.id}`, payload) : api.post<Plant>("/api/plants", payload), onSaved);
   };
   const optionalFields = <>
@@ -37,9 +40,9 @@ export function PlantForm({ plant, options, open = true, onClose, onSaved, onCov
     <Field label="Species"><select value={value.speciesId || ""} onChange={e => set("speciesId", e.target.value)}><option value="">Not identified</option>{options.species.map(species => <option key={species.id} value={species.id}>{species.commonName || species.scientificName}{species.commonName && species.scientificName ? ` · ${species.scientificName}` : ""}</option>)}</select></Field>
     <Field label="Terrarium"><select value={value.terrariumId || ""} onChange={e => set("terrariumId", e.target.value)}><option value="">Standalone</option>{options.terrariums.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></Field>
     <Field label="Date acquired"><input type="date" value={value.dateAcquired} onChange={e => set("dateAcquired", e.target.value)}/></Field>
-    <Field label="Source"><input value={value.source} onChange={e => set("source", e.target.value)} placeholder="Nursery, friend, propagation…"/></Field>
-    <Field label="Standalone location" hint="Used when the plant is not in a terrarium"><input value={value.location} onChange={e => set("location", e.target.value)} placeholder="East window, studio shelf…"/></Field>
-    <Field label="Tags"><input value={tags} onChange={e => setTags(e.target.value)} placeholder="tropical, favorite, rehab"/></Field>
+    <Field label="Source"><ChoiceInput label="Source" value={value.source} options={options.sources||[]} onChange={next=>set("source",next)} placeholder="Nursery, friend, propagation…"/></Field>
+    <Field label="Standalone location" hint="Used when the plant is not in a terrarium"><ChoiceInput label="Standalone location" value={value.location} options={options.locations||[]} onChange={next=>set("location",next)} placeholder="East window, studio shelf…"/></Field>
+    <Field label="Tags"><TagInput value={tags} draft={tagDraft} onChange={setTags} onDraftChange={setTagDraft} options={options.tags}/></Field>
     <Field label="Description / notes" wide><textarea rows={3} value={value.description} onChange={e => set("description", e.target.value)} placeholder="A little about this plant…"/></Field>
     {value.status === "deceased" && <>
       <div className="form-divider field-wide"><span>End-of-life record</span></div>
@@ -54,7 +57,7 @@ export function PlantForm({ plant, options, open = true, onClose, onSaved, onCov
     <form className="form-grid scroll-form plant-form" onSubmit={submit}>
       <fieldset className="form-fields" disabled={mutation.busy}>
         <Field label="Personal name" wide={!plant}><input autoFocus required value={value.name} onChange={e => set("name", e.target.value)} placeholder="e.g. Mosslight"/></Field>
-        <SpritePicker kind="plant" value={value.spriteImage} allowRandom={!plant} onChange={next => set("spriteImage", next)}/>
+        <SpritePicker kind="plant" value={value.spriteImage} allowRandom={!plant} compact={!plant} onChange={next => set("spriteImage", next)}/>
         {plant && onCoverSaved && <section className="edit-cover-field field-wide" role="group" aria-labelledby={`plant-cover-heading-${plant.id}`}>
           <div className="edit-cover-heading"><span id={`plant-cover-heading-${plant.id}`}>Cover photo</span><small>Choose which progress photo represents this plant across the greenhouse.</small></div>
           <CoverPhotoPicker kind="plant" id={plant.id} photos={plant.photos || []} currentId={plant.profilePhotoId} embedded onSaved={onCoverSaved}/>
@@ -94,6 +97,10 @@ export function HistoryForm({ plantId, terrariumId, open, onClose, onSaved }: Hi
 
 export function CareForm({ plantId, item, open, onClose, onSaved }: { plantId: string; item?: CareItem; open: boolean; onClose: () => void; onSaved: () => void }) {
   const [value, setValue] = useState({ activityType: item?.activityType || "watering", customLabel: item?.customLabel || "", guidance: item?.guidance || "", cadenceDays: item?.cadenceDays?.toString() || "", reminderEnabled: item?.reminderEnabled || false, reminderRepeat: item?.reminderRepeat || false, reminderCadenceDays: item?.reminderCadenceDays?.toString() || item?.cadenceDays?.toString() || "", nextReminderDate: item?.nextReminderDate || "", notes: item?.notes || "" });
+  const [mode,setMode]=useState("new"),[query,setQuery]=useState(""),[guidanceId,setGuidanceId]=useState("");
+  const catalog=useLoad<CareGuidance[]>(open&&!item&&mode==="existing"?"/api/care-guidance":null);
+  const choices=(catalog.data||[]).filter(g=>!g.linkedPlants.some(p=>p.id===plantId)&&`${g.activityType} ${g.customLabel} ${g.guidance} ${g.linkedPlants.map(p=>p.name).join(" ")}`.toLocaleLowerCase().includes(query.toLocaleLowerCase()));
+  const selected=catalog.data?.find(g=>g.id===guidanceId);
   const mutation = useMutation();
   const set = (key: string, next: unknown) => setValue(current => ({ ...current, [key]: next }));
   const setReminderEnabled=(enabled:boolean)=>setValue(current=>({...current,reminderEnabled:enabled,nextReminderDate:enabled?(current.nextReminderDate||suggestedReminderDate(Number(current.cadenceDays)||0)):current.nextReminderDate}));
@@ -101,15 +108,27 @@ export function CareForm({ plantId, item, open, onClose, onSaved }: { plantId: s
   const close = () => { if (!mutation.isBusy()) onClose(); };
   return <Modal open={open} busy={mutation.busy} title={item ? "Edit care guidance" : "Add care guidance"} subtitle="A preference, not an obligation." onClose={close}>
     <form className="form-grid scroll-form" onSubmit={event => {
-      event.preventDefault(); const body = { ...value, cadenceDays: value.cadenceDays ? Number(value.cadenceDays) : null, reminderCadenceDays: value.reminderRepeat&&value.reminderCadenceDays ? Number(value.reminderCadenceDays) : null };
-      void mutation.run(() => item ? api.put(`/api/plants/${plantId}/care/${item.id}`, body) : api.post(`/api/plants/${plantId}/care`, body), onSaved);
+      event.preventDefault(); if(mode==="existing"&&!item&&!selected)return; const body = { ...value, cadenceDays: value.cadenceDays ? Number(value.cadenceDays) : null, reminderCadenceDays: value.reminderRepeat&&value.reminderCadenceDays ? Number(value.reminderCadenceDays) : null };
+      void mutation.run(() => item ? api.put(`/api/plants/${plantId}/care/${item.id}`, body) : api.post(`/api/plants/${plantId}/care`,mode==="existing"?{guidanceId,reminderEnabled:value.reminderEnabled,reminderRepeat:value.reminderRepeat,reminderCadenceDays:body.reminderCadenceDays,nextReminderDate:value.nextReminderDate}:body), onSaved);
     }}>
       <fieldset className="form-fields" disabled={mutation.busy}>
+        {!item&&<Field label="Guidance source" wide><select value={mode} onChange={event=>{setMode(event.target.value);setGuidanceId("")}}><option value="new">Create new</option><option value="existing">Link existing</option></select></Field>}
+        {item&&(item.linkedPlants?.length||0)>1&&<p className="shared-record-note field-wide">Shared with {item.linkedPlants?.filter(p=>p.id!==plantId).map(p=>p.name).join(", ")}. Changes to these instructions apply to every linked plant. Reminder changes apply only to this plant.</p>}
+        {!item&&mode==="existing"?<>
+          <Field label="Search existing guidance" wide><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="Activity, instructions, or plant name…"/></Field>
+          {catalog.error&&<div className="field-wide"><ErrorNote message={catalog.error}/><button type="button" className="text-button" onClick={()=>void catalog.reload()}>Retry</button></div>}
+          {catalog.loading?<p className="field-wide" role="status">Loading guidance…</p>:<Field label="Existing guidance" wide><select required value={guidanceId} onChange={event=>{
+            setGuidanceId(event.target.value);const next=catalog.data?.find(g=>g.id===event.target.value);if(next)setValue(current=>({...current,cadenceDays:next.cadenceDays?.toString()||""}));
+          }}><option value="">Choose guidance</option>{choices.map(g=><option key={g.id} value={g.id}>{g.customLabel||prettyStatus(g.activityType)} · {g.guidance} · {g.linkedPlants.map(p=>p.name).join(", ")}</option>)}</select></Field>}
+          {!catalog.loading&&!catalog.error&&!choices.length&&<p className="field-wide">No matching guidance available. Create new guidance or change your search.</p>}
+          {selected&&<article className="guidance-preview field-wide"><strong>{selected.customLabel||prettyStatus(selected.activityType)}</strong><p>{selected.guidance}</p>{selected.cadenceDays&&<p>About every {selected.cadenceDays} days</p>}{selected.notes&&<p>{selected.notes}</p>}<small>Used by {selected.linkedPlants.map(p=>p.name).join(", ")}. Your reminder schedule stays separate.</small></article>}
+        </>:<>
         <Field label="Activity"><select value={value.activityType} onChange={e => set("activityType", e.target.value)}>{careTypes.map(type => <option key={type} value={type}>{prettyStatus(type)}</option>)}</select></Field>
         {value.activityType === "custom" && <Field label="Custom label"><input required value={value.customLabel} onChange={e => set("customLabel", e.target.value)}/></Field>}
         <Field label="General guidance" wide><textarea required rows={3} value={value.guidance} onChange={e => set("guidance", e.target.value)} placeholder="Water when the top layer is dry…"/></Field>
         <Field label="Typical cadence (days)"><input type="number" min="1" value={value.cadenceDays} onChange={e => set("cadenceDays", e.target.value)} placeholder="Optional"/></Field>
         <Field label="Occasional notes"><input value={value.notes} onChange={e => set("notes", e.target.value)} placeholder="Seasonal adjustments…"/></Field>
+        </>}
         <label className="toggle field-wide"><input type="checkbox" checked={value.reminderEnabled} onChange={e => setReminderEnabled(e.target.checked)}/><span/><div><strong>Gentle in-app reminder</strong><small>Optional, and never creates a care log.</small></div></label>
         {value.reminderEnabled && <div className="reminder-schedule field-wide">
           <Field label="Reminder schedule"><select value={value.reminderRepeat?"repeating":"one-time"} onChange={e=>setReminderRepeat(e.target.value==="repeating")}><option value="one-time">One time</option><option value="repeating">Repeating</option></select></Field>
