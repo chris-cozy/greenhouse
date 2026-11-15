@@ -1,11 +1,12 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { api } from "../api";
-import type { AppOptions, CareGuidance, CareItem, HistoryEventType, Plant, PlantStatus } from "../shared/types";
+import type { AppOptions, CareGuidance, CareItem, Photo, Plant, PlantStatus } from "../shared/types";
 import { ErrorNote, Field, FormActions, Modal, prettyStatus } from "./Common";
 import { CoverPhotoPicker } from "./CoverPhoto";
 import { useMutation } from "./Interaction";
 import { ChoiceInput, TagInput, pendingTags } from "./RecordChoices";
 import { useLoad } from "./useLoad";
+import { ProgressSessionEditor } from "./ProgressSessionEditor";
 import { SpritePicker } from "./SpritePicker";
 
 export const plantStatuses: PlantStatus[] = ["healthy", "needs_attention", "recovering", "dormant", "deceased"];
@@ -71,28 +72,8 @@ export function PlantForm({ plant, options, open = true, onClose, onSaved, onCov
 }
 
 type HistoryOwner = { plantId: string; terrariumId?: never } | { plantId?: never; terrariumId: string };
-export function HistoryForm({ plantId, terrariumId, open, onClose, onSaved }: HistoryOwner & { open: boolean; onClose: () => void; onSaved: (id: string) => void }) {
-  const initial = () => ({ eventType: "note", eventDate: new Date().toISOString().slice(0, 10), title: "", detail: "" });
-  const [value, setValue] = useState(initial);
-  const mutation = useMutation();
-  const events: HistoryEventType[] = ["health_issue", "recovery", "flowering", "new_growth", "repotted", "pruned", "moved", "note"];
-  const close = () => { if (!mutation.isBusy()) onClose(); };
-  const reset = () => { setValue(initial()); mutation.clearError(); };
-  return <Modal open={open} busy={mutation.busy} onExited={reset} title="Record a meaningful update" subtitle="A small change worth remembering." onClose={close}>
-    <form className="form-grid scroll-form" onSubmit={event => {
-      event.preventDefault();
-      void mutation.run(() => api.post<{ id: string }>("/api/history", { ...value, ...(plantId ? { plantId } : { terrariumId }) }), result => onSaved(result.id));
-    }}>
-      <fieldset className="form-fields" disabled={mutation.busy}>
-        <Field label="Title" wide><input autoFocus required value={value.title} onChange={e => setValue({ ...value, title: e.target.value })} placeholder="A new leaf unfurled"/></Field>
-        <Field label="What happened?" wide hint="Optional"><textarea rows={4} value={value.detail} onChange={e => setValue({ ...value, detail: e.target.value })} placeholder="A few words to remember it by…"/></Field>
-        <Field label="Kind"><select value={value.eventType} onChange={e => setValue({ ...value, eventType: e.target.value })}>{events.map(type => <option key={type} value={type}>{prettyStatus(type)}</option>)}</select></Field>
-        <Field label="Date"><input type="date" value={value.eventDate} onChange={e => setValue({ ...value, eventDate: e.target.value })}/></Field>
-      </fieldset>
-      {mutation.error && <div className="field-wide"><ErrorNote message={mutation.error}/></div>}
-      <div className="field-wide"><FormActions onCancel={close} busy={mutation.busy} label="Add to history"/></div>
-    </form>
-  </Modal>;
+export function HistoryForm({ plantId, terrariumId, open, onClose, onSaved, options, photos }: HistoryOwner & { open: boolean; onClose: () => void; onSaved: (id: string) => void; options?:AppOptions; photos?:Photo[] }) {
+  return <ProgressSessionEditor open={open} plantId={plantId} terrariumId={terrariumId} options={options} photos={photos} onClose={onClose} onSaved={session=>onSaved(session.id)}/>;
 }
 
 export function CareForm({ plantId, item, open, onClose, onSaved }: { plantId: string; item?: CareItem; open: boolean; onClose: () => void; onSaved: () => void }) {

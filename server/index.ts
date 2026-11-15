@@ -12,6 +12,7 @@ import { fileURLToPath } from "node:url";
 import { GreenhouseStore } from "./store.js";
 import { HttpError } from "./journal.js";
 import { imageMime } from "./imageValidation.js";
+import type { UploadedPhoto } from "./progress.js";
 
 const here=path.dirname(fileURLToPath(import.meta.url));
 const projectRoot=process.cwd();
@@ -79,6 +80,36 @@ app.post("/api/care/:id/reminder/restore",(req,res)=>res.json(store.restoreRemin
 app.post("/api/care/:id/reminder/snooze",(req,res)=>res.json(store.snoozeReminder(req.params.id,Number(req.body.days))));
 app.post("/api/care/:id/reminder/disable",(req,res)=>res.json(store.disableReminder(req.params.id)));
 app.post("/api/history",(req,res)=>res.status(201).json(store.saveEvent(req.body)));
+
+const sessionUpload=multer({dest:tempDir,limits:{fileSize:20*1024*1024,files:20,fieldSize:2*1024*1024},
+  fileFilter:(_req,file,cb)=>allowedMime.has(file.mimetype)?cb(null,true):cb(new Error("Choose JPEG, PNG, WebP, or GIF photos."))}).array("photos",20);
+const saveSession=(req:Request,res:Response,next:NextFunction)=>{
+  sessionUpload(req,res,error=>{
+    const files=(req.files as Express.Multer.File[]|undefined)||[],moved:string[]=[];
+    try{
+      if(error)throw error;
+      const input=typeof req.body.metadata==="string"?JSON.parse(req.body.metadata):req.body;
+      if(!input||typeof input!=="object"||Array.isArray(input))throw new Error("Provide session details.");
+      const validated=files.map(file=>{
+        const mime=imageMime(fs.readFileSync(file.path));
+        if(!mime||mime!==file.mimetype)throw new Error("This file is not a valid JPEG, PNG, WebP, or GIF image.");
+        return {file,mime};
+      });
+      const uploads:UploadedPhoto[]=validated.map(({file,mime})=>{
+        const relative=path.join("progress",new Date().getFullYear().toString(),`${randomUUID()}${extension[mime]}`),target=path.join(mediaDir,relative);
+        fs.mkdirSync(path.dirname(target),{recursive:true});fs.renameSync(file.path,target);moved.push(target);
+        return {relativePath:relative,originalName:file.originalname,mimeType:mime,sizeBytes:file.size};
+      });
+      const session=store.progress.save(input,uploads,req.method==="PUT"?String(req.params.id):undefined);
+      res.status(req.method==="PUT"?200:201).json(session);
+    }catch(error){for(const file of moved)fs.rmSync(file,{force:true});next(error)}
+    finally{for(const file of files)fs.rmSync(file.path,{force:true})}
+  });
+};
+app.post("/api/progress-sessions",saveSession);
+app.put("/api/progress-sessions/:id",saveSession);
+app.get("/api/progress-sessions/:id",(req,res)=>{const session=store.progress.get(String(req.params.id));session?res.json(session):res.status(404).json({error:"Progress session not found."})});
+app.delete("/api/progress-sessions/:id",(req,res)=>{store.progress.delete(String(req.params.id));res.status(204).end()});
 
 app.get("/api/journal",(req,res)=>res.json(store.listJournal(req.query)));
 app.post("/api/journal",(req,res)=>res.status(201).json(store.saveJournal(req.body)));

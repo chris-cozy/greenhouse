@@ -87,7 +87,7 @@ export function PhotoUpload({plantId,terrariumId,photo,options:providedOptions,o
     event.preventDefault();if((!photo&&!file)||(!terrariumId&&!plantIds.length))return;
     const committed=pendingTags(tags,tagDraft);
     void mutation.run(()=>{
-      if(photo)return api.put<Photo>(`/api/photos/${photo.id}`,{caption,dateTaken:date,tags:committed,plantIds});
+      if(photo)return api.put<Photo>(`/api/photos/${photo.id}`,{caption,dateTaken:date,tags:committed,...(!terrariumId?{plantIds}:{})});
       const form=new FormData();form.append("photo",file!);
       if(terrariumId)form.append("terrariumId",terrariumId);else form.append("plantIds",JSON.stringify(plantIds));
       form.append("caption",caption);form.append("dateTaken",date);form.append("tags",committed.join(","));

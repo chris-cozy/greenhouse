@@ -109,6 +109,12 @@ See [the garden guide](docs/3d-garden.md) for controls, asset authoring, and tec
 
 ## Photos and covers
 
+Story updates and progress photos can be saved together as a dated session on plant and terrarium profiles. **Add update** accepts a note with optional photos; **Add photos** accepts multiple photos with an optional shared note. Select up to 20 JPEG, PNG, WebP, or GIF images per session, up to 20 MB each, or attach existing progress photos without copying them. Each photo can have its own caption and remains individually available for comparison and cover selection.
+
+Use **Edit session** from Story or a gallery photo to edit the shared note, date, captions, and attachments. Caption changes apply everywhere the photo appears. Removing an attachment or deleting a session keeps its gallery photos; session date changes leave existing photo dates unchanged. Sessions shared across plants survive deletion of one linked plant. Journal images remain separate.
+
+The plant's **Care guidance** tab also shows its linked species' **Water requirements**, when set, alongside personal guidance. Species instructions stay current without changing plant reminders.
+
 Plant and terrarium profiles include **Choose cover photo**. Uploading a newer image does not replace an explicitly selected cover; deleting the selected image restores the placeholder. Original uploads are stored with the rest of the local media and included in backups.
 
 ## Backup and restore
@@ -121,6 +127,8 @@ Open **Settings** in Greenhouse to manage portable backups:
 Diary schema upgrades run transactionally and create a `greenhouse.sqlite.before-diary-*.sqlite` snapshot before changing an existing database. Older backups are migrated during restore while preserving links, tags, media, and legacy journal dates.
 
 Shared photo and care guidance upgrades also run transactionally, with a `greenhouse.sqlite.before-sharing-*.sqlite` snapshot. Existing photo files, covers, care IDs, and reminder schedules are preserved; similar records are not automatically merged.
+
+Progress-session upgrades create a `greenhouse.sqlite.before-progress-*.sqlite` snapshot and preserve existing notes and standalone photos. Sessions and their attachments are included in backups; older backups are upgraded during restore.
 
 Browser recovery drafts are not part of server backups. Resolve pending saves before restoring a backup.
 

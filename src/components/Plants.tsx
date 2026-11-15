@@ -6,6 +6,7 @@ import type { AppOptions, CareItem, Plant } from "../shared/types";
 import { Confirm, EmptyState, ErrorNote, Loading, PageHeader, RefreshNote, Tags, prettyStatus, shortDate, useLoad } from "./Common";
 import { CareForm, HistoryForm, PlantForm, plantStatuses } from "./PlantForms";
 import { Spirit } from "./Spirit";
+import { SessionStory } from "./SessionStory";
 import { ProfileTabs } from "./ProfileTabs";
 import { ProfilePhotos, type ProfileMoment, type ProfileSaved } from "./ProfilePhotos";
 import { SaveFeedback, useFeedback, useMutation } from "./Interaction";
@@ -111,11 +112,13 @@ function PlantDetail({ id, options, refreshOptions, welcomePlantId, onWelcomeSho
             className={`${item.kind} ${newMoment?.id === item.id && newMoment.kind === item.kind ? "new-moment" : ""}`} onAnimationEnd={() => setNewMoment(null)}>
             <div className={`timeline-mark ${item.kind}`}>{item.kind === "photo" ? <Camera/> : item.kind === "journal" ? <Flower2/> : <History/>}</div>
             <div><time>{shortDate(item.date)}</time><h3>{item.title}</h3><p>{item.detail}</p>{item.photoUrl && <img src={item.photoUrl} alt={item.detail || "Plant progress"}/>}
+              {item.kind === "session" && <SessionStory moment={item} plantId={plant.id} photos={plant.photos||[]} options={options} onSaved={saved}/>}
               {item.journalId && <Link to={`/journal/${item.journalId}`}>Read journal entry <ChevronRight/></Link>}
             </div>
           </article>)}</div> : <EmptyState icon={<Spirit id={plant.id} spriteImage={plant.spriteImage} size="empty"/>} title="Its story starts here" copy="Acquisition, photos, journal entries, and meaningful updates will gather into this timeline."/>}
         </div>{plant.status === "deceased" && <aside className="story-aside memorial-aside"><div className="memorial-card"><Leaf/><span className="eyebrow">Remembered</span><h3>{plant.dateOfDeath ? shortDate(plant.dateOfDeath) : "Date unknown"}</h3><p>{plant.causeOfDeath || "Cause not recorded"}</p><small>{plant.finalNotes}</small></div></aside>}</div></section>
         <section {...panel("care")}><div className="tab-toolbar"><p>Guidance lives here without asking you to log every watering.</p><button className="button primary" onClick={() => openCare()}><Plus/> Add guidance</button></div>
+          {plant.speciesWaterRequirements?.trim() && <article className="care-card species-watering"><div className="care-icon"><Droplets/></div><div><span className="eyebrow">Species watering guidance</span><h3>{plant.speciesCommonName||plant.speciesScientificName}</h3><p>{plant.speciesWaterRequirements}</p><Link to={`/species/${plant.speciesId}`}>View species reference <ChevronRight size={14}/></Link></div></article>}
           {plant.careItems?.length ? <div className="care-grid">{plant.careItems.map(item =>
             <article className="care-card" key={item.id}>
               <div className="care-icon">{item.activityType === "watering" || item.activityType === "misting" ? <Droplets/> : <Leaf/>}</div>
@@ -138,7 +141,7 @@ function PlantDetail({ id, options, refreshOptions, welcomePlantId, onWelcomeSho
     </div>
     <PlantForm open={editing} plant={plant} options={options} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); saved("Plant details saved."); }} onCoverSaved={() => saved("Cover photo updated.")}/>
     {care && <CareForm key={care.version} open={careOpen} plantId={plant.id} item={care.item} onClose={() => setCareOpen(false)} onSaved={() => { setCareOpen(false); saved("Care guidance saved."); }}/>}
-    <HistoryForm open={history} plantId={plant.id} onClose={() => setHistory(false)} onSaved={eventId => { setHistory(false); saved("A new moment added to the story.", { kind: "event", id: eventId }); }}/>
+    <HistoryForm options={options} photos={plant.photos||[]} open={history} plantId={plant.id} onClose={() => setHistory(false)} onSaved={eventId => { setHistory(false); saved("A new moment added to the story.", { kind: "session", id: eventId }); }}/>
     {confirm && <Confirm title={`Delete ${plant.name}?`} copy="This permanently removes the profile and history. Photos and care guidance linked to other plants remain. Linked journal entries remain, with this plant link removed." onClose={() => setConfirm(false)} onConfirm={async () => { await api.delete(`/api/plants/${plant.id}`); refreshOptions(); navigate("/plants"); }}/>}
   </div>;
 }

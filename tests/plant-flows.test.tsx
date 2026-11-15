@@ -70,12 +70,13 @@ describe("plant creation and editing",()=>{
 
 describe("meaningful update saves",()=>{
   it("prioritizes the title, preserves the failed draft, and returns the saved event ID",async()=>{
-    const saved=vi.fn();vi.mocked(api.post).mockRejectedValueOnce(new Error('Try again'));
+    const saved=vi.fn();vi.mocked(api.upload).mockRejectedValueOnce(new Error('Try again'));
     await mount(<HistoryForm open plantId='fern' onClose={()=>{}} onSaved={saved}/>);
     expect(document.body.querySelector('form label span')?.textContent).toBe('Title');await fill('Title','A new frond');await fill('What happened?','Unfurled overnight');await submit();
     expect(input('Title').value).toBe('A new frond');expect(input('What happened?').value).toBe('Unfurled overnight');expect(saved).not.toHaveBeenCalled();
-    vi.mocked(api.post).mockResolvedValueOnce({id:'event-new'});await submit();expect(saved).toHaveBeenCalledOnce();expect(saved).toHaveBeenCalledWith('event-new');
-    expect(api.post).toHaveBeenLastCalledWith('/api/history',expect.objectContaining({plantId:'fern',eventType:'note',title:'A new frond',detail:'Unfurled overnight'}));
+    vi.mocked(api.upload).mockResolvedValueOnce({id:'event-new'});await submit();expect(saved).toHaveBeenCalledOnce();expect(saved).toHaveBeenCalledWith('event-new');
+    expect(api.upload).toHaveBeenLastCalledWith('/api/progress-sessions',expect.any(FormData));
+    expect(JSON.parse(String(vi.mocked(api.upload).mock.calls.at(-1)![1].get('metadata')))).toEqual(expect.objectContaining({plantIds:['fern'],eventType:'note',title:'A new frond',detail:'Unfurled overnight'}));
   });
 });
 

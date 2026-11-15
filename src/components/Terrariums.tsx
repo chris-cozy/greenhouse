@@ -7,6 +7,7 @@ import { Confirm, EmptyState, ErrorNote, Loading, PageHeader, RefreshNote, short
 import { HistoryForm } from "./PlantForms";
 import { TerrariumForm } from "./TerrariumForm";
 import { ProfilePhotos, type ProfileMoment, type ProfileSaved } from "./ProfilePhotos";
+import { SessionStory } from "./SessionStory";
 import { ProfileTabs } from "./ProfileTabs";
 import { Spirit } from "./Spirit";
 import { SaveFeedback, useFeedback } from "./Interaction";
@@ -95,6 +96,7 @@ function TerrariumDetail({ id, refreshOptions, welcomeTerrariumId, onWelcomeShow
           {item.history?.length ? <div className="timeline">{item.history.map(moment => <article key={`${moment.kind}-${moment.id}`} className={`${moment.kind} ${newMoment?.kind === moment.kind && newMoment.id === moment.id ? "new-moment" : ""}`} onAnimationEnd={() => setNewMoment(null)}>
             <div className={`timeline-mark ${moment.kind}`}>{moment.kind === "photo" ? <Camera/> : moment.kind === "journal" ? <Flower2/> : <History/>}</div>
             <div><time>{shortDate(moment.date)}</time><h3>{moment.title}</h3><p>{moment.detail}</p>{moment.photoUrl && <img src={moment.photoUrl} alt={moment.detail || "Habitat progress"}/>}
+              {moment.kind === "session" && <SessionStory moment={moment} terrariumId={id} photos={item.photos||[]} onSaved={saved}/>}
               {moment.journalId && <Link to={`/journal/${moment.journalId}`}>Read journal entry <ChevronRight/></Link>}
             </div>
           </article>)}</div> : <EmptyState icon={<Spirit id={id} spriteImage={item.spriteImage} kind="terrarium" size="empty"/>} title="Its story starts here" copy="Photos, linked journal entries, and little changes will gather into this habitat’s story."/>}
@@ -117,7 +119,7 @@ function TerrariumDetail({ id, refreshOptions, welcomeTerrariumId, onWelcomeShow
       </div>
     </div>
     <TerrariumForm open={editing} item={item} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); saved("Terrarium details saved."); }} onCoverSaved={() => saved("Cover photo updated.")}/>
-    <HistoryForm open={history} terrariumId={id} onClose={() => setHistory(false)} onSaved={eventId => { setHistory(false); saved("A new moment added to the story.", { kind: "event", id: eventId }); }}/>
+    <HistoryForm photos={item.photos||[]} open={history} terrariumId={id} onClose={() => setHistory(false)} onSaved={eventId => { setHistory(false); saved("A new moment added to the story.", { kind: "session", id: eventId }); }}/>
     {confirm && <Confirm title={`Delete ${item.name}?`} copy="Resident plants will become standalone and keep their complete histories. The terrarium record and its photos will be removed." onClose={() => setConfirm(false)} onConfirm={async () => { await api.delete(`/api/terrariums/${id}`); refreshOptions(); navigate("/terrariums"); }}/>}
   </div>;
 }

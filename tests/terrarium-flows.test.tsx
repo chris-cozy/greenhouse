@@ -74,10 +74,10 @@ describe("terrarium creation and editing",()=>{
 
 describe("terrarium updates and profiles",()=>{
   it("shares the title-first update form and writes the terrarium owner without a plant ID",async()=>{
-    const saved=vi.fn();vi.mocked(api.post).mockResolvedValue({id:'new-moment'});
+    const saved=vi.fn();vi.mocked(api.upload).mockResolvedValue({id:'new-moment'});
     await mount(<HistoryForm open terrariumId='cloud' onClose={()=>{}} onSaved={saved}/>);
     expect(document.body.querySelector('form label span')?.textContent).toBe('Title');await fill('Title','New moss');await fill('What happened?','Fresh shoots by the glass');await submit();
-    const payload=vi.mocked(api.post).mock.calls[0][1];expect(payload).toEqual(expect.objectContaining({terrariumId:'cloud',eventType:'note',title:'New moss',detail:'Fresh shoots by the glass'}));expect(payload).not.toHaveProperty('plantId');expect(saved).toHaveBeenCalledWith('new-moment');
+    const payload=JSON.parse(String(vi.mocked(api.upload).mock.calls[0][1].get('metadata')));expect(payload).toEqual(expect.objectContaining({terrariumId:'cloud',eventType:'note',title:'New moss',detail:'Fresh shoots by the glass'}));expect(payload).not.toHaveProperty('plantId');expect(saved).toHaveBeenCalledWith('new-moment');
   });
   it("preserves photography, journal links, resident identities, and all habitat notes",async()=>{
     await profile();const metadata=document.body.querySelector('.hero-meta')?.textContent;
@@ -106,16 +106,16 @@ describe("terrarium updates and profiles",()=>{
     expect(api.post).toHaveBeenCalledOnce();expect(document.body.querySelector('.refresh-note')).toBeNull();expect(document.body.querySelector('.compare-panel')).toBe(comparison);
   });
   it("announces and animates a new update only after success, then refreshes without losing the active tab",async()=>{
-    vi.useFakeTimers();await profile();await act(async()=>button('Add update').click());await fill('Title','New shoots');vi.mocked(api.post).mockRejectedValueOnce(new Error('Offline'));await submit();
+    vi.useFakeTimers();await profile();await act(async()=>button('Add update').click());await fill('Title','New shoots');vi.mocked(api.upload).mockRejectedValueOnce(new Error('Offline'));await submit();
     expect(document.body.querySelector('.spirit-motion-settle')).toBeNull();expect(document.body.querySelector('.save-feedback')?.textContent).toBe('');expect(input('Title').value).toBe('New shoots');
-    vi.mocked(api.post).mockResolvedValueOnce({id:'new-event'});vi.mocked(api.get).mockResolvedValueOnce({...terrarium,history:[{id:'new-event',kind:'event',title:'New shoots',detail:'',date:'2026-08-28'},...terrarium.history!]});await submit();
+    vi.mocked(api.upload).mockResolvedValueOnce({id:'new-event'});vi.mocked(api.get).mockResolvedValueOnce({...terrarium,history:[{id:'new-event',kind:'session',title:'New shoots',detail:'',date:'2026-08-28'},...terrarium.history!]});await submit();
     expect(document.body.querySelector('.save-feedback')?.textContent).toContain('A new moment added');expect(document.body.querySelectorAll('.timeline .new-moment')).toHaveLength(1);expect(document.body.querySelectorAll('.spirit-motion-settle')).toHaveLength(1);expect(document.body.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe('Story');
-    await act(async()=>vi.advanceTimersByTime(360));expect(document.body.querySelector('.spirit-motion-settle')).toBeNull();expect(api.post).toHaveBeenCalledTimes(2);
+    await act(async()=>vi.advanceTimersByTime(360));expect(document.body.querySelector('.spirit-motion-settle')).toBeNull();expect(api.upload).toHaveBeenCalledTimes(2);
   });
   it("opens photo upload from the photo workspace and preserves the terrarium owner",async()=>{
-    await profile();await act(async()=>button('Habitat photos').click());await act(async()=>button('Add photo').click());expect(document.body.querySelector('[role="dialog"]')?.textContent).toContain('Add a habitat photo');expect(document.body.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe('Habitat photos');
-    const field=document.body.querySelector<HTMLInputElement>('input[type="file"]')!;Object.defineProperty(field,'files',{value:[new File(['demo'],'moss.png',{type:'image/png'})]});await act(async()=>field.dispatchEvent(new Event('change',{bubbles:true})));await fill('Caption','Moss by the glass');
-    vi.mocked(api.upload).mockResolvedValueOnce(terrarium.photos![0]);await submit();const form=vi.mocked(api.upload).mock.calls[0][1] as FormData;expect(form.get('terrariumId')).toBe('cloud');expect(form.get('plantId')).toBeNull();expect(form.get('caption')).toBe('Moss by the glass');expect(document.body.querySelector('.save-feedback')?.textContent).toContain('Photo added');
+    await profile();await act(async()=>button('Habitat photos').click());await act(async()=>button('Add photos').click());expect(document.body.querySelector('[role="dialog"]')?.textContent).toContain('Add photos');expect(document.body.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe('Habitat photos');
+    const field=document.body.querySelector<HTMLInputElement>('input[type="file"]')!;Object.defineProperty(field,'files',{value:[new File(['demo'],'moss.png',{type:'image/png'})]});await act(async()=>field.dispatchEvent(new Event('change',{bubbles:true})));await fill('Caption 1','Moss by the glass');
+    vi.mocked(api.upload).mockResolvedValueOnce({id:'session-photo'});await submit();const form=vi.mocked(api.upload).mock.calls[0][1] as FormData;const metadata=JSON.parse(String(form.get('metadata')));expect(metadata.terrariumId).toBe('cloud');expect(metadata.plantIds).toEqual([]);expect(metadata.photos[0].caption).toBe('Moss by the glass');expect(document.body.querySelector('.save-feedback')?.textContent).toContain('Photos added');
   });
   it("uses the same shared creation trigger in the collection and retains photo covers",async()=>{
     const add=vi.fn();vi.mocked(api.get).mockResolvedValue([terrarium]);await mount(<MemoryRouter><TerrariumsPage onAddTerrarium={add}/></MemoryRouter>);

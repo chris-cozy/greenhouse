@@ -1,3 +1,4 @@
+import { migrateProgress, ProgressRepository } from "./progress.js";
 import { migrateSharing } from "./sharingMigration.js";
 import { JournalRepository, migrateJournal } from "./journal.js";
 import { journalExcerpt } from "../src/shared/journal.js";
@@ -103,6 +104,7 @@ export class GreenhouseStore {
     }
     db.prepare("INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(5,?)").run(iso());
     migrateSharing(db,this.dbPath);
+    migrateProgress(db,this.dbPath);
     db.pragma("optimize");
   }
   close(){this.db.close()}
@@ -117,8 +119,8 @@ export class GreenhouseStore {
     const tx=this.db.transaction(()=>{this.db.prepare(`DELETE FROM ${kind}_tags WHERE ${kind}_id=?`).run(id);for(const name of values){const existing=this.db.prepare("SELECT id FROM tags WHERE name=? COLLATE NOCASE").get(name) as Row|undefined;const tagId=existing?.id||randomUUID();if(!existing)this.db.prepare("INSERT INTO tags(id,name) VALUES(?,?)").run(tagId,name);this.db.prepare(`INSERT OR IGNORE INTO ${kind}_tags(${kind}_id,tag_id) VALUES(?,?)`).run(id,tagId)}});tx();
   }
   private rowSpecies(r:Row):Species{return {id:r.id,commonName:r.common_name,scientificName:r.scientific_name,family:r.family,description:r.description,nativeHabitat:r.native_habitat,growthCharacteristics:r.growth_characteristics,matureSize:r.mature_size,lightRequirements:r.light_requirements,waterRequirements:r.water_requirements,humidityRequirements:r.humidity_requirements,temperatureRange:r.temperature_range,substratePreferences:r.substrate_preferences,fertilizationRecommendations:r.fertilization_recommendations,propagationMethods:r.propagation_methods,commonProblems:r.common_problems,commonPests:r.common_pests,toxicity:r.toxicity,terrariumSuitability:r.terrarium_suitability,notes:r.notes,imageUrl:r.image_path?`/media/${r.image_path.replaceAll("\\","/")}`:"",plantCount:Number(r.plant_count||0),createdAt:r.created_at,updatedAt:r.updated_at}}
-  private rowPlant(r:Row):Plant{return {id:r.id,name:r.name,spriteImage:getPlantIcon(String(r.id),r.sprite_image),speciesId:r.species_id,speciesCommonName:r.species_common_name||"",speciesScientificName:r.species_scientific_name||"",description:r.description,dateAcquired:r.date_acquired,source:r.source,location:r.location,terrariumId:r.terrarium_id,terrariumName:r.terrarium_name||"",status:r.status,profilePhotoId:r.profile_photo_id,profilePhotoUrl:r.profile_path?`/media/${r.profile_path.replaceAll("\\","/")}`:"",archivedAt:r.archived_at,dateOfDeath:r.date_of_death,causeOfDeath:r.cause_of_death,finalNotes:r.final_notes,tags:this.tagsFor("plant",r.id),updatedAt:r.updated_at,createdAt:r.created_at}}
-  private plantSelect=`SELECT p.*,s.common_name species_common_name,s.scientific_name species_scientific_name,t.name terrarium_name,pp.relative_path profile_path FROM plants p LEFT JOIN species s ON s.id=p.species_id LEFT JOIN terrariums t ON t.id=p.terrarium_id LEFT JOIN photos pp ON pp.id=p.profile_photo_id`;
+  private rowPlant(r:Row):Plant{return {id:r.id,name:r.name,spriteImage:getPlantIcon(String(r.id),r.sprite_image),speciesId:r.species_id,speciesCommonName:r.species_common_name||"",speciesScientificName:r.species_scientific_name||"",speciesWaterRequirements:r.species_water_requirements||"",description:r.description,dateAcquired:r.date_acquired,source:r.source,location:r.location,terrariumId:r.terrarium_id,terrariumName:r.terrarium_name||"",status:r.status,profilePhotoId:r.profile_photo_id,profilePhotoUrl:r.profile_path?`/media/${r.profile_path.replaceAll("\\","/")}`:"",archivedAt:r.archived_at,dateOfDeath:r.date_of_death,causeOfDeath:r.cause_of_death,finalNotes:r.final_notes,tags:this.tagsFor("plant",r.id),updatedAt:r.updated_at,createdAt:r.created_at}}
+  private plantSelect=`SELECT p.*,s.common_name species_common_name,s.scientific_name species_scientific_name,s.water_requirements species_water_requirements,t.name terrarium_name,pp.relative_path profile_path FROM plants p LEFT JOIN species s ON s.id=p.species_id LEFT JOIN terrariums t ON t.id=p.terrarium_id LEFT JOIN photos pp ON pp.id=p.profile_photo_id`;
 
   listSpecies(q=""){const rows=this.db.prepare(`SELECT s.*,(SELECT COUNT(*) FROM plants p WHERE p.species_id=s.id) plant_count FROM species s WHERE (?='' OR s.common_name LIKE ? OR s.scientific_name LIKE ? OR s.family LIKE ?) ORDER BY COALESCE(NULLIF(s.common_name,''),s.scientific_name) COLLATE NOCASE`).all(q,`%${q}%`,`%${q}%`,`%${q}%`) as Row[];return rows.map(r=>this.rowSpecies(r))}
   getSpecies(id:string){const r=this.db.prepare(`SELECT s.*,(SELECT COUNT(*) FROM plants p WHERE p.species_id=s.id) plant_count FROM species s WHERE s.id=?`).get(id) as Row|undefined;return r?this.rowSpecies(r):null}
@@ -153,6 +155,7 @@ export class GreenhouseStore {
         const file=this.deletePhoto(photo.id);if(file)files.push(file);
       }
       this.pruneGuidance();
+      this.progress.prune();
       return files;
     })();
   }
@@ -232,7 +235,7 @@ export class GreenhouseStore {
   }
   private rowPhoto(r:Row):Photo{
     const linkedPlants=this.db.prepare("SELECT p.id,p.name FROM plants p JOIN photo_plants x ON x.plant_id=p.id WHERE x.photo_id=? ORDER BY p.id").all(r.id) as Array<{id:string;name:string}>;
-    return {id:r.id,plantId:linkedPlants[0]?.id||null,plantIds:linkedPlants.map(p=>p.id),linkedPlants,terrariumId:r.terrarium_id,url:`/media/${r.relative_path.replaceAll("\\","/")}`,originalName:r.original_name,mimeType:r.mime_type,sizeBytes:r.size_bytes,dateTaken:r.date_taken,caption:r.caption,tags:this.tagsFor("photo",r.id),createdAt:r.created_at};
+    return {id:r.id,plantId:linkedPlants[0]?.id||null,plantIds:linkedPlants.map(p=>p.id),linkedPlants,terrariumId:r.terrarium_id,url:`/media/${r.relative_path.replaceAll("\\","/")}`,originalName:r.original_name,mimeType:r.mime_type,sizeBytes:r.size_bytes,dateTaken:r.date_taken,caption:r.caption,tags:this.tagsFor("photo",r.id),createdAt:r.created_at,sessions:this.db.prepare("SELECT s.id,s.title FROM progress_sessions s JOIN progress_session_photos x ON x.session_id=s.id WHERE x.photo_id=? ORDER BY s.event_date DESC,s.id").all(r.id) as Array<{id:string;title:string}>};
   }
   validatePhotoLinks(input:Row){
     if(input.plantIds!==undefined&&(!Array.isArray(input.plantIds)||input.plantIds.some((id:unknown)=>typeof id!=="string"||!id.trim())))throw new Error("Choose valid plant links.");
@@ -263,6 +266,8 @@ export class GreenhouseStore {
       if(input.terrariumId!==undefined&&text(input.terrariumId)!==(old.terrarium_id||""))throw new Error("The photo type cannot be changed.");
       if(input.plantIds!==undefined||input.plantId!==undefined){
         const links=this.validatePhotoLinks({...input,terrariumId:old.terrarium_id});
+        const required=this.db.prepare("SELECT DISTINCT x.plant_id FROM progress_session_plants x JOIN progress_session_photos p ON p.session_id=x.session_id WHERE p.photo_id=?").all(id) as Row[];
+        if(required.some(row=>!links.plantIds.includes(row.plant_id)))throw new Error("Detach this photo from its sessions before removing a required plant link.");
         this.syncPhotoPlants(id,links.plantIds);
       }
       this.db.prepare("UPDATE photos SET date_taken=?,caption=? WHERE id=?").run(input.dateTaken===undefined?old.date_taken:text(input.dateTaken),input.caption===undefined?old.caption:text(input.caption),id);
@@ -279,6 +284,7 @@ export class GreenhouseStore {
     })();
   }
 
+  get progress(){return new ProgressRepository(this.db,row=>this.rowPhoto(row),input=>this.createPhoto(input as Parameters<GreenhouseStore["createPhoto"]>[0]),input=>this.validatePhotoLinks(input))}
   get journal(){return new JournalRepository(this.db)}
   listJournal(filters:Row={}){return this.journal.list(filters)}
   getJournal(id:string){return this.journal.get(id)}
@@ -287,9 +293,12 @@ export class GreenhouseStore {
 
   timeline(kind:"plant"|"terrarium",id:string):TimelineItem[]{
     const events=(this.db.prepare(`SELECT * FROM history_events WHERE ${kind}_id=?`).all(id) as Row[]).map(r=>({id:r.id,kind:"event" as const,eventType:r.event_type,date:r.event_date,title:r.title,detail:r.detail}));
-    const photos=this.listPhotos(kind,id).map(p=>({id:p.id,kind:"photo" as const,date:p.dateTaken||p.createdAt,title:"Progress photo",detail:p.caption,photoUrl:p.url}));
+    const sessions=this.progress.list(kind,id);
+    const attached=new Set(sessions.flatMap(session=>session.photos.map(photo=>photo.id)));
+    const photos=this.listPhotos(kind,id).filter(photo=>!attached.has(photo.id)).map(p=>({id:p.id,kind:"photo" as const,date:p.dateTaken||p.createdAt,title:"Progress photo",detail:p.caption,photoUrl:p.url}));
     const journals=this.listJournal(kind==="plant"?{plantId:id}:{terrariumId:id}).map(j=>({id:j.id,kind:"journal" as const,date:j.entryDate,title:j.title,detail:journalExcerpt(j.content,180),journalId:j.id}));
-    return [...events,...photos,...journals].sort((a,b)=>b.date.localeCompare(a.date));
+    const updates=sessions.map(session=>({id:session.id,kind:"session" as const,eventType:session.eventType,date:session.eventDate,title:session.title,detail:session.detail,photos:session.photos}));
+    return [...events,...photos,...journals,...updates].sort((a,b)=>b.date.localeCompare(a.date));
   }
   dashboard():DashboardData{
     const gardenPlants=(this.db.prepare("SELECT id,name,sprite_image FROM plants WHERE archived_at IS NULL AND status!='deceased' ORDER BY created_at,rowid").all() as Row[]).map(r=>({id:String(r.id),name:String(r.name),spriteImage:getPlantIcon(String(r.id),r.sprite_image)}));
