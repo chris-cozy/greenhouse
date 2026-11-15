@@ -101,6 +101,12 @@ The journal is a single editable workspace at `/journal`; direct `/journal/:id` 
 
 Avoid clearing browser storage while a save is failing, because unsynced recovery drafts live in the current browser.
 
+## Companion garden
+
+The desktop dashboard includes a 3D garden with flowering, succulent, and moss companions that wander and rest, plus glass-jar terrarium habitats. Select a companion to open its profile, or use **Find a companion** to reach any record across garden plots. **Garden / List**, pause, camera controls, and reduced-motion support keep the collection easy to use. Phones and browsers that cannot render the garden use the sprite collection.
+
+See [the garden guide](docs/3d-garden.md) for controls, asset authoring, and technical details.
+
 ## Photos and covers
 
 Plant and terrarium profiles include **Choose cover photo**. Uploading a newer image does not replace an explicitly selected cover; deleting the selected image restores the placeholder. Original uploads are stored with the rest of the local media and included in backups.

@@ -31,3 +31,7 @@ dev-*.log
 
 /dist/
 /dist-server/
+
+# Browser review output and Blender's automatic backup files
+/.playwright-cli/
+/assets/garden/*.blend1
