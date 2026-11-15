@@ -1,0 +1,22 @@
+.session-attachments { display:grid; gap:14px; min-width:0; }
+.session-attachments > article { display:grid; grid-template-columns:120px minmax(0,1fr); gap:14px; padding:12px; border:1px solid var(--line); border-radius:12px; }
+.session-attachments img { width:120px; max-height:160px; object-fit:contain; border-radius:8px; }
+.session-attachments strong { display:block; overflow-wrap:anywhere; font-size:13px; margin-bottom:8px; }
+.session-attachment-actions { display:flex; flex-wrap:wrap; gap:12px; margin-top:8px; }
+.session-existing summary { cursor:pointer; padding:10px 0; }
+.session-existing > div { max-height:240px; overflow:auto; display:grid; gap:8px; }
+.session-existing label { display:flex; align-items:center; gap:10px; padding:8px; border:1px solid var(--line); border-radius:8px; }
+.session-existing input { width:auto; }
+.session-existing img { width:60px; height:60px; object-fit:cover; border-radius:6px; }
+.session-existing span { min-width:0; overflow-wrap:anywhere; }
+.session-existing small { display:block; color:var(--muted); }
+.session-help { color:var(--muted); font-size:13px; }
+.timeline .session-photo-strip { display:flex; flex-wrap:wrap; gap:12px; margin:12px 0; }
+.timeline .session-photo-strip figure { margin:0; width:min(200px,100%); }
+.timeline .session-photo-strip img { width:100%; height:160px; object-fit:cover; margin:0; }
+.session-photo-strip figcaption { font-size:13px; color:var(--muted); overflow-wrap:anywhere; }
+.photo-session-links { display:grid; gap:6px; margin:8px 0; }
+.photo-session-links button { text-align:left; overflow-wrap:anywhere; }
+.species-watering { margin-bottom:20px; }
+.species-watering p { white-space:pre-wrap; }
+@media(max-width:540px) { .session-attachments > article { grid-template-columns:1fr; } .session-attachments img { width:100%; max-height:180px; } }

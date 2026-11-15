@@ -10,10 +10,11 @@ function labelFor(src: string) {
   return `${head} · ${pose}`;
 }
 
-export function SpritePicker({ kind, value, allowRandom = false, onChange }: {
+export function SpritePicker({ kind, value, allowRandom = false, compact = false, onChange }: {
   kind: SpriteKind;
   value: string;
   allowRandom?: boolean;
+  compact?: boolean;
   onChange: (src: string) => void;
 }) {
   const headingId = useId();
@@ -23,7 +24,13 @@ export function SpritePicker({ kind, value, allowRandom = false, onChange }: {
     ? [PLANT_ICON_IMAGES[0], PLANT_ICON_IMAGES[3], PLANT_ICON_IMAGES[6]]
     : [...TERRARIUM_ICON_IMAGES];
 
-  return <section className={`sprite-picker sprite-picker-${kind} field-wide`} role="group" aria-labelledby={headingId}>
+  const choices=images.map(src=><label className={`sprite-choice ${value===src?"selected":""}`} key={src}>
+    <input type="radio" name={name} value={src} checked={value===src} onChange={()=>onChange(src)}/>
+    <span className="sprite-choice-preview"><img src={src} alt=""/></span>
+    <strong>{labelFor(src)}</strong>
+  </label>);
+
+  return <section className={`sprite-picker sprite-picker-${kind} ${compact?"sprite-picker-compact":""} field-wide`} role="group" aria-labelledby={headingId}>
     <div className="sprite-picker-heading">
       <span id={headingId}>Companion sprite</span>
       <small>{allowRandom ? "Choose one now, or let the greenhouse surprise you." : "Choose how this companion appears across the greenhouse."}</small>
@@ -34,11 +41,8 @@ export function SpritePicker({ kind, value, allowRandom = false, onChange }: {
         <span className="sprite-choice-preview">{surpriseImages.map(src => <img key={src} src={src} alt=""/>)}</span>
         <strong>Surprise me</strong><small>Assigned when saved</small>
       </label>}
-      {images.map(src => <label className={`sprite-choice ${value === src ? "selected" : ""}`} key={src}>
-        <input type="radio" name={name} value={src} checked={value === src} onChange={() => onChange(src)}/>
-        <span className="sprite-choice-preview"><img src={src} alt=""/></span>
-        <strong>{labelFor(src)}</strong>
-      </label>)}
+      {compact?<details className="sprite-alternatives"><summary>Choose a sprite{value&&` \u00b7 ${labelFor(value)}`}</summary><div className="sprite-picker-grid">{choices}</div></details>:choices}
+
     </div>
   </section>;
 }

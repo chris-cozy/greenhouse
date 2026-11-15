@@ -12,6 +12,7 @@ import { fileURLToPath } from "node:url";
 import { GreenhouseStore } from "./store.js";
 import { HttpError } from "./journal.js";
 import { imageMime } from "./imageValidation.js";
+import type { UploadedPhoto } from "./progress.js";
 
 const here=path.dirname(fileURLToPath(import.meta.url));
 const projectRoot=process.cwd();
@@ -69,6 +70,7 @@ app.put("/api/terrariums/:id",(req,res)=>res.json(store.saveTerrarium(req.body,r
 app.post("/api/terrariums/:id/cover-photo",(req,res)=>res.json(store.setCoverPhoto(req.params.id,req.body.photoId||null)));
 app.delete("/api/terrariums/:id",(req,res)=>{const files=store.getTerrarium(req.params.id)?.photos?.map(photo=>decodeURIComponent(photo.url.replace(/^\/media\//,"")))||[];store.deleteTerrarium(req.params.id);for(const file of files)removeMedia(file);res.status(204).end()});
 
+app.get("/api/care-guidance",(req,res)=>res.json(store.listGuidance(String(req.query.q||""))));
 app.post("/api/plants/:plantId/care",(req,res)=>res.status(201).json(store.saveCare(req.params.plantId,req.body)));
 app.put("/api/plants/:plantId/care/:id",(req,res)=>res.json(store.saveCare(req.params.plantId,req.body,req.params.id as any)));
 app.delete("/api/care/:id",(req,res)=>{store.deleteCare(req.params.id);res.status(204).end()});
@@ -78,6 +80,36 @@ app.post("/api/care/:id/reminder/restore",(req,res)=>res.json(store.restoreRemin
 app.post("/api/care/:id/reminder/snooze",(req,res)=>res.json(store.snoozeReminder(req.params.id,Number(req.body.days))));
 app.post("/api/care/:id/reminder/disable",(req,res)=>res.json(store.disableReminder(req.params.id)));
 app.post("/api/history",(req,res)=>res.status(201).json(store.saveEvent(req.body)));
+
+const sessionUpload=multer({dest:tempDir,limits:{fileSize:20*1024*1024,files:20,fieldSize:2*1024*1024},
+  fileFilter:(_req,file,cb)=>allowedMime.has(file.mimetype)?cb(null,true):cb(new Error("Choose JPEG, PNG, WebP, or GIF photos."))}).array("photos",20);
+const saveSession=(req:Request,res:Response,next:NextFunction)=>{
+  sessionUpload(req,res,error=>{
+    const files=(req.files as Express.Multer.File[]|undefined)||[],moved:string[]=[];
+    try{
+      if(error)throw error;
+      const input=typeof req.body.metadata==="string"?JSON.parse(req.body.metadata):req.body;
+      if(!input||typeof input!=="object"||Array.isArray(input))throw new Error("Provide session details.");
+      const validated=files.map(file=>{
+        const mime=imageMime(fs.readFileSync(file.path));
+        if(!mime||mime!==file.mimetype)throw new Error("This file is not a valid JPEG, PNG, WebP, or GIF image.");
+        return {file,mime};
+      });
+      const uploads:UploadedPhoto[]=validated.map(({file,mime})=>{
+        const relative=path.join("progress",new Date().getFullYear().toString(),`${randomUUID()}${extension[mime]}`),target=path.join(mediaDir,relative);
+        fs.mkdirSync(path.dirname(target),{recursive:true});fs.renameSync(file.path,target);moved.push(target);
+        return {relativePath:relative,originalName:file.originalname,mimeType:mime,sizeBytes:file.size};
+      });
+      const session=store.progress.save(input,uploads,req.method==="PUT"?String(req.params.id):undefined);
+      res.status(req.method==="PUT"?200:201).json(session);
+    }catch(error){for(const file of moved)fs.rmSync(file,{force:true});next(error)}
+    finally{for(const file of files)fs.rmSync(file.path,{force:true})}
+  });
+};
+app.post("/api/progress-sessions",saveSession);
+app.put("/api/progress-sessions/:id",saveSession);
+app.get("/api/progress-sessions/:id",(req,res)=>{const session=store.progress.get(String(req.params.id));session?res.json(session):res.status(404).json({error:"Progress session not found."})});
+app.delete("/api/progress-sessions/:id",(req,res)=>{store.progress.delete(String(req.params.id));res.status(204).end()});
 
 app.get("/api/journal",(req,res)=>res.json(store.listJournal(req.query)));
 app.post("/api/journal",(req,res)=>res.status(201).json(store.saveJournal(req.body)));
@@ -104,15 +136,18 @@ app.post("/api/journal/:id/images",upload.single("image"),(req,res,next)=>{
 });
 
 app.post("/api/photos",upload.single("photo"),(req,res,next)=>{
+  let moved:string|undefined;
   try{
     if(!req.file)throw new Error("Choose a JPEG, PNG, WebP, or GIF image under 20 MB.");
-    const plantId=String(req.body.plantId||"")||undefined;const terrariumId=String(req.body.terrariumId||"")||undefined;
-    if(Boolean(plantId)===Boolean(terrariumId))throw new Error("Associate the photo with one plant or terrarium.");
-    const folder=path.join(plantId?"plants":"terrariums",plantId||terrariumId!,new Date().getFullYear().toString());fs.mkdirSync(path.join(mediaDir,folder),{recursive:true});
-    const relative=path.join(folder,`${randomUUID()}${extension[req.file.mimetype]}`);fs.renameSync(req.file.path,path.join(mediaDir,relative));
-    const photo=store.createPhoto({relativePath:relative,originalName:req.file.originalname,mimeType:req.file.mimetype,sizeBytes:req.file.size,plantId,terrariumId,dateTaken:String(req.body.dateTaken||""),caption:String(req.body.caption||""),tags:String(req.body.tags||"").split(",").map(x=>x.trim()).filter(Boolean)});
+    const plantIds=req.body.plantIds===undefined?undefined:JSON.parse(req.body.plantIds);
+    const links=store.validatePhotoLinks({plantIds,plantId:req.body.plantId,terrariumId:req.body.terrariumId});
+    const mime=imageMime(fs.readFileSync(req.file.path));
+    if(!mime||mime!==req.file.mimetype)throw new Error("This file is not a valid JPEG, PNG, WebP, or GIF image.");
+    const folder=path.join(links.terrariumId?"terrariums":"progress",...(links.terrariumId?[links.terrariumId]:[]),new Date().getFullYear().toString());fs.mkdirSync(path.join(mediaDir,folder),{recursive:true});
+    const relative=path.join(folder,`${randomUUID()}${extension[mime]}`);moved=path.join(mediaDir,relative);fs.renameSync(req.file.path,moved);
+    const photo=store.createPhoto({relativePath:relative,originalName:req.file.originalname,mimeType:mime,sizeBytes:req.file.size,plantIds:links.plantIds,terrariumId:links.terrariumId||undefined,dateTaken:String(req.body.dateTaken||""),caption:String(req.body.caption||""),tags:String(req.body.tags||"").split(",").map(x=>x.trim()).filter(Boolean)});
     res.status(201).json(photo);
-  }catch(error){if(req.file)fs.rmSync(req.file.path,{force:true});next(error)}
+  }catch(error){if(req.file)fs.rmSync(req.file.path,{force:true});if(moved)fs.rmSync(moved,{force:true});next(error)}
 });
 app.put("/api/photos/:id",(req,res)=>res.json(store.updatePhoto(req.params.id,req.body)));
 app.delete("/api/photos/:id",(req,res)=>{removeMedia(store.deletePhoto(req.params.id));res.status(204).end()});

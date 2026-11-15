@@ -99,7 +99,7 @@ function Shell(){
       </div>
     </main>
     <PlantForm open={creatingPlant} options={current} onClose={()=>setCreatingPlant(false)} onSaved={plant=>{setCreatingPlant(false);setWelcomePlantId(plant.id);refreshApp();navigate(`/plants/${plant.id}`)}}/>
-    <TerrariumForm open={creatingTerrarium} onClose={()=>setCreatingTerrarium(false)} onSaved={item=>{setCreatingTerrarium(false);setWelcomeTerrariumId(item.id);refreshApp();navigate(`/terrariums/${item.id}`)}}/>
+    <TerrariumForm options={current} open={creatingTerrarium} onClose={()=>setCreatingTerrarium(false)} onSaved={item=>{setCreatingTerrarium(false);setWelcomeTerrariumId(item.id);refreshApp();navigate(`/terrariums/${item.id}`)}}/>
     <Modal open={more} title="More in your greenhouse" eyebrow="Explore" className="navigation-sheet" onClose={()=>setMore(false)}><nav className="more-links" aria-label="More destinations">{nav.filter(item=>item.to==="/species"||item.to==="/settings").map(item=><NavLink key={item.to} to={item.to} onClick={()=>setMore(false)}><item.icon/><span>{item.label}<small>{item.to==="/species"?"Your botanical field guide":"Back up or restore your greenhouse"}</small></span><ArrowRight/></NavLink>)}</nav></Modal>
     <GlobalSearch open={search} onClose={()=>setSearch(false)} options={options}/>
   </div>;

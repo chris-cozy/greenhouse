@@ -4,4 +4,7 @@ dist-server
 data
 .git
 .tmp-codex-verification
+.tmp-codex-verification*
+.playwright-cli
+assets/garden
 *.log

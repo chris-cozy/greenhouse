@@ -9,7 +9,9 @@ Greenhouse is a self-hosted home for the plants in your care and the stories tha
 - **Living plant archive** — Keep profiles for living, dormant, recovering, deceased, and archived plants, with locations, tags, care notes, and a meaningful history.
 - **Terrarium records** — Document habitats, residents, environmental details, cover photos, and changes over time.
 - **Gentle care reminders** — Schedule one-time or repeating reminders, then complete, snooze, disable, or undo them. Greenhouse never assumes a task was done or logs it automatically.
-- **Progress photos** — Build a visual history for each plant or terrarium and choose dedicated profile and cover images.
+- **Reusable care guidance** — Link plants to existing instructions while keeping their reminder schedules independent. Instruction edits apply to every linked plant.
+- **Progress photos** — Preview uploads, link one group photo to multiple plants, edit its links and metadata, and choose independent plant covers. Photos still linked to another plant survive plant deletion.
+- **Reusable form choices** — Choose existing sources, locations, and plant/photo tags or type new ones. Diary tags remain separate.
 - **Botanical reference library** — Save reusable species information once and link it to every relevant plant.
 - **Rich Markdown journal** — Write with slash commands, checklists, tables, links, images, date mentions, tags, and autosave while keeping the underlying content portable.
 - **Fast global search** — Find plants, terrariums, species, and journal entries from anywhere in the app.
@@ -99,7 +101,19 @@ The journal is a single editable workspace at `/journal`; direct `/journal/:id` 
 
 Avoid clearing browser storage while a save is failing, because unsynced recovery drafts live in the current browser.
 
+## Companion garden
+
+The desktop dashboard includes a 3D garden with flowering, succulent, and moss companions that wander and rest, plus glass-jar terrarium habitats. Select a companion to open its profile, or use **Find a companion** to reach any record across garden plots. **Garden / List**, pause, camera controls, and reduced-motion support keep the collection easy to use. Phones and browsers that cannot render the garden use the sprite collection.
+
+See [the garden guide](docs/3d-garden.md) for controls, asset authoring, and technical details.
+
 ## Photos and covers
+
+Story updates and progress photos can be saved together as a dated session on plant and terrarium profiles. **Add update** accepts a note with optional photos; **Add photos** accepts multiple photos with an optional shared note. Select up to 20 JPEG, PNG, WebP, or GIF images per session, up to 20 MB each, or attach existing progress photos without copying them. Each photo can have its own caption and remains individually available for comparison and cover selection.
+
+Use **Edit session** from Story or a gallery photo to edit the shared note, date, captions, and attachments. Caption changes apply everywhere the photo appears. Removing an attachment or deleting a session keeps its gallery photos; session date changes leave existing photo dates unchanged. Sessions shared across plants survive deletion of one linked plant. Journal images remain separate.
+
+The plant's **Care guidance** tab also shows its linked species' **Water requirements**, when set, alongside personal guidance. Species instructions stay current without changing plant reminders.
 
 Plant and terrarium profiles include **Choose cover photo**. Uploading a newer image does not replace an explicitly selected cover; deleting the selected image restores the placeholder. Original uploads are stored with the rest of the local media and included in backups.
 
@@ -111,6 +125,10 @@ Open **Settings** in Greenhouse to manage portable backups:
 - **Restore** validates the archive and database integrity before replacing current data, with rollback protection if the operation fails.
 
 Diary schema upgrades run transactionally and create a `greenhouse.sqlite.before-diary-*.sqlite` snapshot before changing an existing database. Older backups are migrated during restore while preserving links, tags, media, and legacy journal dates.
+
+Shared photo and care guidance upgrades also run transactionally, with a `greenhouse.sqlite.before-sharing-*.sqlite` snapshot. Existing photo files, covers, care IDs, and reminder schedules are preserved; similar records are not automatically merged.
+
+Progress-session upgrades create a `greenhouse.sqlite.before-progress-*.sqlite` snapshot and preserve existing notes and standalone photos. Sessions and their attachments are included in backups; older backups are upgraded during restore.
 
 Browser recovery drafts are not part of server backups. Resolve pending saves before restoring a backup.
 

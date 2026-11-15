@@ -1,0 +1,37 @@
+.garden-home { min-width:0; }
+.garden-mode-bar { display:flex; gap:4px; justify-content:flex-end; margin-bottom:8px; }
+.garden-mode-bar .button { min-height:32px; padding:5px 12px; font-size:13px; }
+.garden-mode-bar [aria-pressed=true] { background:var(--panel2); border-color:var(--green); color:var(--cream); }
+.garden-3d .garden-heading-row > button { flex-shrink:0; }
+.garden-canvas-wrap { position:relative; height:clamp(440px, 42vw, 560px); overflow:hidden; background:#8da68f; isolation:isolate; }
+.garden-canvas-wrap > div:first-child { height:100%; }
+.garden-canvas-wrap canvas { display:block; touch-action:pan-y; cursor:grab; }
+.garden-canvas-wrap canvas:active { cursor:grabbing; }
+.garden-camera-tools { position:absolute; top:12px; right:12px; display:flex; gap:5px; }
+.garden-camera-tools .icon-button, .garden-plot-controls .icon-button { width:34px; height:34px; background:var(--panel); border:1px solid var(--line); }
+.garden-selected { position:absolute; left:16px; right:16px; bottom:16px; display:flex; align-items:center; gap:12px; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 14px; box-shadow:0 5px 20px #0004; }
+.garden-selected > span { flex:1; min-width:0; }
+.garden-selected strong { display:block; overflow-wrap:anywhere; font-size:15px; }
+.garden-selected small { display:block; margin-top:3px; color:var(--muted); }
+.garden-selected .button { flex-shrink:0; }
+.garden-plot-controls { display:flex; align-items:center; gap:12px; }
+.garden-plot-controls button:disabled { opacity:.35; }
+.garden-3d-footer { align-items:center; }
+.garden-finder { border-top:1px solid var(--line); }
+.garden-finder summary { display:flex; align-items:center; gap:8px; padding:12px 22px; cursor:pointer; color:var(--cream); font-size:13px; }
+.garden-finder summary::after { content:'+'; margin-left:auto; }
+.garden-finder[open] summary::after { content:'−'; }
+.garden-finder-content { padding:0 22px 16px; }
+.garden-finder-content .inline-search { width:100%; }
+.garden-finder ul { list-style:none; padding:0; margin:10px 0 0; max-height:260px; overflow:auto; }
+.garden-finder li { display:flex; align-items:center; gap:14px; border-bottom:1px solid var(--line); }
+.garden-finder li button { flex:1; min-width:0; display:flex; align-items:center; gap:12px; text-align:left; background:transparent; border:0; padding:8px 4px; color:var(--cream); }
+.garden-finder li button[aria-pressed=true] { background:var(--panel2); }
+.garden-finder li img { width:36px; height:42px; object-fit:contain; }
+.garden-finder li span { overflow-wrap:anywhere; }
+.garden-finder li small { display:block; color:var(--muted); margin-top:3px; }
+.garden-finder li a { flex-shrink:0; font-size:12px; color:var(--green); }
+.garden-loading { display:grid; place-items:center; height:clamp(440px, 42vw, 560px); color:var(--cream); font:18px Georgia,serif; }
+.garden-scene-loading { position:absolute; inset:0; display:grid; place-items:center; background:#28453a; color:var(--cream); pointer-events:none; }
+.garden-fallback { display:flex; flex-wrap:wrap; align-items:center; gap:10px; color:var(--muted); font-size:14px; }
+@media (forced-colors:active) { .garden-canvas-wrap { background:Canvas; } }
